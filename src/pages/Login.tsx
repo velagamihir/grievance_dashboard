@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react'
-import { Shield, User, Lock, Eye, EyeOff } from 'lucide-react'
+import { User, Lock, Eye, EyeOff } from 'lucide-react'
 import { TextInput } from '../components/TextInput'
 import { Button } from '../components/Buttons'
 import { useAuth } from '../context/AuthContext'
 import type { LoginFormState, LoginFormErrors, LoginProps } from '../types'
+import logoImg from '../assets/images/logos/logo.png'
 
 export const Login = ({ onSuccess, onForgotPassword }: LoginProps) => {
   const { signIn } = useAuth()
@@ -74,9 +75,11 @@ export const Login = ({ onSuccess, onForgotPassword }: LoginProps) => {
     <div className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 bg-offwhite dark:bg-[#151726] transition-colors duration-200">
       <div className="w-full max-w-md bg-white dark:bg-[#20243a] rounded-3xl shadow-xl shadow-darkblue/5 dark:shadow-black/30 border border-gray/20 p-8 sm:p-10 space-y-8">
         <div className="flex flex-col items-center text-center space-y-4">
-          <div className="w-16 h-16 rounded-2xl bg-darkblue dark:bg-orange flex items-center justify-center shadow-md transition-colors">
-            <Shield className="w-9 h-9 text-offwhite" />
-          </div>
+          <img
+            src={logoImg}
+            alt="Grievance Council Logo"
+            className="w-16 h-16 rounded-2xl object-contain shadow-md bg-darkblue/5 dark:bg-white/5 p-1"
+          />
 
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-darkblue dark:text-offwhite tracking-tight">
