@@ -4,6 +4,8 @@ import {
   signOut,
   sendPasswordResetEmail,
   onAuthStateChanged,
+  setPersistence,
+  browserSessionPersistence,
   type User,
 } from 'firebase/auth'
 import { auth } from '../lib/firebase'
@@ -16,6 +18,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Set session-only persistence so session is cleared when the tab/window is closed
+    setPersistence(auth, browserSessionPersistence).catch((error) => {
+      console.error('Failed to set auth persistence to session:', error)
+    })
+
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser)
       setLoading(false)
@@ -24,6 +31,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [])
 
   const signIn = async (email: string, pass: string): Promise<User> => {
+    await setPersistence(auth, browserSessionPersistence)
     const userCredential = await signInWithEmailAndPassword(auth, email, pass)
     return userCredential.user
   }
