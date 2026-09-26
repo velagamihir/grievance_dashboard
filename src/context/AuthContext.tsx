@@ -4,6 +4,8 @@ import {
   signOut,
   sendPasswordResetEmail,
   onAuthStateChanged,
+  setPersistence,
+  browserSessionPersistence,
   type User,
 } from 'firebase/auth'
 import { auth } from '../lib/firebase'
@@ -24,6 +26,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [])
 
   const signIn = async (email: string, pass: string): Promise<User> => {
+    await setPersistence(auth, browserSessionPersistence)
     const userCredential = await signInWithEmailAndPassword(auth, email, pass)
     return userCredential.user
   }
