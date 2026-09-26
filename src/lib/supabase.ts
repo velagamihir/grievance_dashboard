@@ -5,10 +5,11 @@ const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || ''
 
 const supabaseUrl =
   import.meta.env.VITE_SUPABASE_URL ||
-  (projectId ? `https://${projectId}.supabase.co` : '')
+  (projectId ? `https://${projectId}.supabase.co` : '') ||
+  'https://placeholder-project.supabase.co'
 
 const supabaseAnonKey =
-  import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+  import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-anon-key'
 
 export const supabase = createClient(
   supabaseUrl,
