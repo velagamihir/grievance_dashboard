@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-orange: #e67e6a;
+  --color-darkblue: #3c4479;
+  --color-offwhite: #fefdfd;
+  --color-lightblue: #3e93c7;
+  --color-gray: #929394;
+
+  /* Additional aliases with hyphenated names for flexibility */
+  --color-dark-blue: #3c4479;
+  --color-off-white: #fefdfd;
+  --color-light-blue: #3e93c7;
+
+  /* Brand namespace */
+  --color-brand-orange: #e67e6a;
+  --color-brand-darkblue: #3c4479;
+  --color-brand-dark-blue: #3c4479;
+  --color-brand-offwhite: #fefdfd;
+  --color-brand-off-white: #fefdfd;
+  --color-brand-lightblue: #3e93c7;
+  --color-brand-light-blue: #3e93c7;
+  --color-brand-gray: #929394;
+}
+
+:root {
+  color-scheme: light dark;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: #fefdfd;
+  color: #3c4479;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.dark body,
+html.dark body {
+  background-color: #1a1d2e;
+  color: #fefdfd;
+}
