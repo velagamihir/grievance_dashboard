@@ -13,6 +13,7 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { supabase } from '../lib/supabase'
 import { Button } from '../components/Buttons'
 import { Drawer } from '../components/Drawer'
@@ -25,6 +26,7 @@ export const Home = ({
   currentPath = '/',
   onNavigate,
 }: HomeProps) => {
+  useDocumentTitle('Dashboard | Grievance Portal')
   const { user, signOutUser } = useAuth()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [grievances, setGrievances] = useState<FormResponseRow[]>([])

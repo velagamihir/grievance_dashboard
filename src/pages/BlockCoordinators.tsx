@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { usePermissions } from '../hooks/usePermissions'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { supabase } from '../lib/supabase'
 import { Button } from '../components/Buttons'
 import { Drawer } from '../components/Drawer'
@@ -29,6 +30,7 @@ export const BlockCoordinators = ({
   currentPath = '/block_coordinators',
   onNavigate,
 }: BlockCoordinatorsProps) => {
+  useDocumentTitle('Block Coordinators | Grievance Portal')
   const { user, signOutUser } = useAuth()
   const { role, hasPermission } = usePermissions()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)

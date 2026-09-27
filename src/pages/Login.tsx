@@ -3,10 +3,12 @@ import { User, Lock, Eye, EyeOff } from 'lucide-react'
 import { TextInput } from '../components/TextInput'
 import { Button } from '../components/Buttons'
 import { useAuth } from '../context/AuthContext'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import type { LoginFormState, LoginFormErrors, LoginProps } from '../types'
 import logoImg from '../assets/images/logos/logo.png'
 
 export const Login = ({ onSuccess, onForgotPassword }: LoginProps) => {
+  useDocumentTitle('Sign In | Grievance Portal')
   const { signIn } = useAuth()
   const [formData, setFormData] = useState<LoginFormState>({
     username: '',

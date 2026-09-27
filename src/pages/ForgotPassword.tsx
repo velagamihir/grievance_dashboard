@@ -3,9 +3,11 @@ import { KeyRound, Mail, ArrowLeft, CheckCircle2, RotateCw } from 'lucide-react'
 import { TextInput } from '../components/TextInput'
 import { Button } from '../components/Buttons'
 import { useAuth } from '../context/AuthContext'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import type { ForgotPasswordProps } from '../types'
 
 export const ForgotPassword = ({ initialEmail = '', onBackToLogin, onSuccess }: ForgotPasswordProps) => {
+  useDocumentTitle('Reset Password | Grievance Portal')
   const { resetPassword } = useAuth()
   const [email, setEmail] = useState(initialEmail)
   const [error, setError] = useState<string | undefined>()
