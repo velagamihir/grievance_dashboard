@@ -12,6 +12,7 @@ import {
   checkCanManageCoordinators,
   checkCanViewCoordinators,
   checkCanCreateCoordinator,
+  checkCanAddCoordinator,
   checkCanEditCoordinator,
   checkCanDeleteCoordinator,
   isAdminOrSuperAdmin,
@@ -34,6 +35,7 @@ export interface UserPermissionsState {
   canManageCoordinators: boolean
   canViewCoordinators: boolean
   canCreateCoordinator: boolean
+  canAddCoordinator: boolean
   canEditCoordinator: boolean
   canDeleteCoordinator: boolean
   refreshPermissions: () => Promise<void>
@@ -50,11 +52,11 @@ const KNOWN_PERMISSIONS: PermissionRow[] = [
   { id: 7, name: 'Edit Grievances', resource: 'grievances', action: 'edit', description: 'Edit Grievances', created_at: '2026-09-27' },
   { id: 8, name: 'Delete Grievances', resource: 'grievances', action: 'delete', description: 'Delete Grievances', created_at: '2026-09-27' },
   { id: 10, name: 'Edit Status Grievances', resource: 'grievances', action: 'edit status', description: 'Edit Status Grievances', created_at: '2026-09-27' },
-  { id: 11, name: 'View Block Coordinators', resource: 'block_coordinators', action: 'view', description: 'View Block Coordinators', created_at: '2026-09-27' },
-  { id: 12, name: 'Add Block Coordinators', resource: 'block_coordinators', action: 'add', description: 'Add Block Coordinators', created_at: '2026-09-27' },
-  { id: 13, name: 'Edit Block Coordinators', resource: 'block_coordinators', action: 'edit', description: 'Edit Block Coordinators', created_at: '2026-09-27' },
-  { id: 14, name: 'Delete Block Coordinators', resource: 'block_coordinators', action: 'delete', description: 'Delete Block Coordinators', created_at: '2026-09-27' },
-  { id: 15, name: 'Manage Coordinators', resource: 'block_coordinators', action: 'manage', description: 'Manage Block Coordinators', created_at: '2026-09-27' },
+  { id: 11, name: 'View Coordinators', resource: 'block_coordinators', action: 'view', description: 'View Coordinators', created_at: '2026-09-27' },
+  { id: 12, name: 'Add Coordinators', resource: 'block_coordinators', action: 'add', description: 'Add Coordinators', created_at: '2026-09-27' },
+  { id: 13, name: 'Edit Coordinators', resource: 'block_coordinators', action: 'edit', description: 'Edit Coordinators', created_at: '2026-09-27' },
+  { id: 14, name: 'Delete Coordinators', resource: 'block_coordinators', action: 'delete', description: 'Delete Coordinators', created_at: '2026-09-27' },
+  { id: 15, name: 'Manage Coordinators', resource: 'block_coordinators', action: 'manage', description: 'Manage Coordinators', created_at: '2026-09-27' },
 ]
 
 export function usePermissions(): UserPermissionsState {
@@ -178,6 +180,7 @@ export function usePermissions(): UserPermissionsState {
   const canManageCoordinators = checkCanManageCoordinators(permissions, role)
   const canViewCoordinators = checkCanViewCoordinators(permissions, role)
   const canCreateCoordinator = checkCanCreateCoordinator(permissions, role)
+  const canAddCoordinator = canCreateCoordinator
   const canEditCoordinator = checkCanEditCoordinator(permissions, role)
   const canDeleteCoordinator = checkCanDeleteCoordinator(permissions, role)
 
@@ -197,6 +200,7 @@ export function usePermissions(): UserPermissionsState {
     canManageCoordinators,
     canViewCoordinators,
     canCreateCoordinator,
+    canAddCoordinator,
     canEditCoordinator,
     canDeleteCoordinator,
     refreshPermissions: fetchPermissions,
