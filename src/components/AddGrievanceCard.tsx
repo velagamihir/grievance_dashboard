@@ -20,6 +20,7 @@ import type {
   GrievanceFormData,
   FormResponseRow,
   InputCardField,
+  SourceRow,
 } from '../types'
 
 export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
@@ -70,7 +71,7 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
           .order('id', { ascending: true })
 
         if (!error && data && data.length > 0) {
-          const names = data.map((s: any) => s.source_name).filter(Boolean)
+          const names = (data as SourceRow[]).map((s) => s.source_name).filter(Boolean)
           if (names.length > 0) {
             setSources(names)
             setFormData((prev) => ({
@@ -262,8 +263,8 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
         setAlert({ type: 'success', message: 'Grievance created successfully!' })
         if (onSuccess) onSuccess(data as FormResponseRow)
       }
-    } catch (err: any) {
-      setAlert({ type: 'error', message: err?.message || 'Failed to submit grievance.' })
+    } catch (err: unknown) {
+      setAlert({ type: 'error', message: err instanceof Error ? err.message : 'Failed to submit grievance.' })
     } finally {
       setSubmitting(false)
     }

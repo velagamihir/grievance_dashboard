@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   Inbox,
   TrendingUp,
@@ -9,8 +9,15 @@ import { usePermissions } from '../hooks/usePermissions'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { supabase } from '../lib/supabase'
 import { Button, Drawer, Header } from '../components'
-import { formatDate, getStatusBadgeClass } from '../utils'
-import type { HomeProps, DashboardStatItem, FormResponseRow } from '../types'
+import {
+  formatDate,
+  getStatusBadgeClass,
+  calculateGrievanceStats,
+  getRecentGrievances,
+  getUserDisplayName,
+  getGrievanceLocation,
+} from '../utils'
+import type { HomeProps, FormResponseRow } from '../types'
 
 export const Home = ({
   isDark,
@@ -25,7 +32,7 @@ export const Home = ({
   const [grievances, setGrievances] = useState<FormResponseRow[]>([])
   const [loading, setLoading] = useState(true)
 
-  const fetchGrievances = async () => {
+  const fetchGrievances = useCallback(async () => {
     if (!canViewAllGrievances) {
       setGrievances([])
       setLoading(false)
@@ -49,7 +56,7 @@ export const Home = ({
     } finally {
       setLoading(false)
     }
-  }
+  }, [canViewAllGrievances])
 
   useEffect(() => {
     if (!permissionsLoading) {
@@ -60,7 +67,7 @@ export const Home = ({
         setLoading(false)
       }
     }
-  }, [permissionsLoading, canViewAllGrievances])
+  }, [permissionsLoading, canViewAllGrievances, fetchGrievances])
 
   // Dynamic statistics and recent list derived via extracted utils
   const stats = useMemo(() => calculateGrievanceStats(grievances), [grievances])
@@ -84,6 +91,7 @@ export const Home = ({
         isDark={isDark}
         onToggleTheme={onToggleTheme}
         onOpenDrawer={() => setIsDrawerOpen(true)}
+        role={role}
         userEmail={user?.email}
         onSignOut={() => signOutUser()}
       />

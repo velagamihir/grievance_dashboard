@@ -204,7 +204,7 @@ export interface ListHeaderProps {
   className?: string
 }
 
-export interface ListProps<T = any> {
+export interface ListProps<T = Record<string, unknown>> {
   items?: T[]
   renderItem?: (item: T, index: number) => ReactNode
   keyExtractor?: (item: T, index: number) => string | number

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import {
@@ -17,7 +17,12 @@ import {
   isAdminOrSuperAdmin,
   isSuperAdmin,
 } from '../utils'
-import type { PermissionRow } from '../types'
+import type { PermissionRow, RoleRow } from '../types'
+
+interface RolePermissionJoined {
+  permission_id: number
+  permissions: PermissionRow | PermissionRow[] | null
+}
 
 export interface UserPermissionsState {
   role: string | null
@@ -49,7 +54,7 @@ export function usePermissions(): UserPermissionsState {
   const [allPermissions, setAllPermissions] = useState<PermissionRow[]>([])
   const [loading, setLoading] = useState<boolean>(true)
 
-  const fetchPermissions = async () => {
+  const fetchPermissions = useCallback(async () => {
     if (!user) {
       setRole(null)
       setPermissions([])
@@ -127,8 +132,8 @@ export function usePermissions(): UserPermissionsState {
         console.error('[Permissions] Error fetching roles from DB:', rolesError)
       }
 
-      const matchedRole = (allRoles || []).find(
-        (r: any) =>
+      const matchedRole = (allRoles as RoleRow[] | null || []).find(
+        (r) =>
           r.name?.toLowerCase().trim() === cleanRole ||
           String(r.id) === cleanRole
       )
@@ -163,10 +168,11 @@ export function usePermissions(): UserPermissionsState {
       let joinedPerms: PermissionRow[] = []
 
       if (rpData && rpData.length > 0) {
-        grantedPermissionIds = rpData.map((rp: any) => String(rp.permission_id))
-        joinedPerms = rpData
-          .map((rp: any) => (Array.isArray(rp.permissions) ? rp.permissions[0] : rp.permissions))
-          .filter((p: any): p is PermissionRow => p !== null && typeof p === 'object' && Boolean(p.name))
+        const typedRpData = rpData as unknown as RolePermissionJoined[]
+        grantedPermissionIds = typedRpData.map((rp) => String(rp.permission_id))
+        joinedPerms = typedRpData
+          .map((rp) => (Array.isArray(rp.permissions) ? rp.permissions[0] : rp.permissions))
+          .filter((p): p is PermissionRow => p !== null && typeof p === 'object' && Boolean(p.name))
       }
 
       // 5. Match against available permissions
@@ -187,11 +193,11 @@ export function usePermissions(): UserPermissionsState {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user])
 
   useEffect(() => {
     fetchPermissions()
-  }, [user])
+  }, [fetchPermissions])
 
   // Helper functions delegating to src/utils/permissions
   const hasPermission = (resource: string, action: string): boolean =>

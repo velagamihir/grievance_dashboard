@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Users,
   MapPin,
@@ -76,7 +76,7 @@ export const BlockCoordinators = ({
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deletingTarget, setDeletingTarget] = useState<BlockCoordinatorRow | null>(null)
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!canViewCoordinators) {
       setCoordinators([])
       setGrievances([])
@@ -111,7 +111,7 @@ export const BlockCoordinators = ({
     } finally {
       setLoading(false)
     }
-  }
+  }, [canViewCoordinators])
 
   useEffect(() => {
     if (!permissionsLoading) {
@@ -123,7 +123,7 @@ export const BlockCoordinators = ({
         setLoading(false)
       }
     }
-  }, [permissionsLoading, canViewCoordinators])
+  }, [permissionsLoading, canViewCoordinators, fetchData])
 
   const handleAddCoordinator = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -162,8 +162,8 @@ export const BlockCoordinators = ({
         setIsAddModalOpen(false)
         setNewCoordinator({ name: '', block: '', phone_no: '' })
       }
-    } catch (err: any) {
-      setFormError(err?.message || 'Failed to add coordinator')
+    } catch (err: unknown) {
+      setFormError(err instanceof Error ? err.message : 'Failed to add coordinator')
     } finally {
       setIsSubmitting(false)
     }
@@ -217,8 +217,8 @@ export const BlockCoordinators = ({
         setIsEditModalOpen(false)
         setEditingTarget(null)
       }
-    } catch (err: any) {
-      setEditFormError(err?.message || 'Failed to update coordinator')
+    } catch (err: unknown) {
+      setEditFormError(err instanceof Error ? err.message : 'Failed to update coordinator')
     } finally {
       setIsEditing(false)
     }
@@ -259,45 +259,18 @@ export const BlockCoordinators = ({
         setIsDeleteModalOpen(false)
         setDeletingTarget(null)
       }
-    } catch (err: any) {
-      setDeleteError(err?.message || 'Failed to delete coordinator')
+    } catch (err: unknown) {
+      setDeleteError(err instanceof Error ? err.message : 'Failed to delete coordinator')
     } finally {
       setIsDeleting(false)
     }
   }
 
   // Dynamic calculations from live DB data
-  const totalCoordinators = coordinators.length
-  const uniqueBlocksCount = new Set(
-    coordinators.map((c) => (c.block || '').trim()).filter(Boolean)
-  ).size
-
-  const stats: CoordinatorStatItem[] = [
-    {
-      title: 'Total Coordinators',
-      count: totalCoordinators.toString(),
-      change: `${uniqueBlocksCount} unique blocks covered`,
-      icon: Users,
-      color: 'bg-lightblue/15 text-lightblue dark:bg-lightblue/25',
-    },
-  ]
+  const stats = useMemo(() => calculateCoordinatorStats(coordinators), [coordinators])
 
   // Get grievance count matching a coordinator's block
-  const getCasesForBlock = (blockName: string | null) => {
-    if (!blockName) return { active: 0, resolved: 0 }
-    const norm = blockName.toLowerCase()
-    const matching = grievances.filter(
-      (g) => (g.room_no_and_block_name || '').toLowerCase().includes(norm)
-    )
-    const active = matching.filter((g) => {
-      const s = (g.status || '').toLowerCase()
-      return s === 'pending' || s === 'in progress' || s === 'under review'
-    }).length
-    const resolved = matching.filter(
-      (g) => (g.status || '').toLowerCase() === 'resolved'
-    ).length
-    return { active, resolved }
-  }
+  const getCasesForBlock = (blockName: string | null) => getCoordinatorCases(grievances, blockName)
 
   const hasActionColumn = canEditCoordinator || canDeleteCoordinator
 

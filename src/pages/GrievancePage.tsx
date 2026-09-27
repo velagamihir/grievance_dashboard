@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   Plus,
   Trash2,
@@ -48,6 +48,7 @@ import type {
   GrievancePageProps,
   FormResponseRow,
   GrievanceFormData,
+  SourceRow,
 } from '../types'
 
 export const GrievancePage: React.FC<GrievancePageProps> = ({
@@ -99,7 +100,7 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
   const [sources, setSources] = useState<string[]>(['Form', 'Web Portal', 'Mobile App', 'Kiosk'])
 
   // Fetch Sources from Supabase
-  const fetchSources = async () => {
+  const fetchSources = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('sources')
@@ -107,7 +108,7 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
         .order('id', { ascending: true })
 
       if (!error && data && data.length > 0) {
-        const names = data.map((s: any) => s.source_name).filter(Boolean)
+        const names = (data as SourceRow[]).map((s) => s.source_name).filter(Boolean)
         if (names.length > 0) {
           setSources(names)
         }
@@ -115,9 +116,9 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
     } catch (err) {
       console.warn('[GrievancePage] Error fetching sources:', err)
     }
-  }
+  }, [])
 
-  const fetchGrievances = async () => {
+  const fetchGrievances = useCallback(async () => {
     if (!canViewAllGrievances) {
       setGrievances([])
       setLoading(false)
@@ -138,7 +139,7 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
       } else if (data) {
         setGrievances(data as FormResponseRow[])
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[GrievancePage] Unexpected error:', err)
       showToast('Error connecting to database', 'error')
       setGrievances([])
@@ -146,11 +147,11 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
       setLoading(false)
       setRefreshing(false)
     }
-  }
+  }, [canViewAllGrievances])
 
   useEffect(() => {
     fetchSources()
-  }, [])
+  }, [fetchSources])
 
   useEffect(() => {
     if (!permissionsLoading) {
@@ -161,7 +162,7 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
         setLoading(false)
       }
     }
-  }, [permissionsLoading, canViewAllGrievances])
+  }, [permissionsLoading, canViewAllGrievances, fetchGrievances])
 
   // 1. Inline Status Dropdown Change
   const handleStatusChange = async (grievanceId: number, newStatus: string) => {
@@ -347,8 +348,8 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
       }
       exportGrievancesToExcel(grievances)
       showToast(`Exported ${grievances.length} grievance(s) to Excel!`, 'success')
-    } catch (err: any) {
-      showToast(err?.message || 'Failed to export grievances.', 'error')
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : 'Failed to export grievances.', 'error')
     }
   }
 

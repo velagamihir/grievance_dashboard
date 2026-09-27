@@ -526,7 +526,7 @@ const listVariantStyles: Record<ListVariant, string> = {
   flush: 'space-y-1',
 }
 
-export function List<T = any>({
+export function List<T = Record<string, unknown>>({
   items,
   renderItem,
   keyExtractor = (_item, idx) => idx,
@@ -628,8 +628,8 @@ export function List<T = any>({
         if (filterFn) {
           return filterFn(item, activeFilter)
         }
-        if (typeof item === 'object' && item !== null && 'status' in (item as any)) {
-          return (item as any).status === activeFilter
+        if (typeof item === 'object' && item !== null && 'status' in item) {
+          return (item as Record<string, unknown>).status === activeFilter
         }
       }
 
