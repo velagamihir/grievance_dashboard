@@ -266,8 +266,38 @@ export const BlockCoordinators = ({
     }
   }
 
-  // Derived statistics via extracted utils
-  const stats = useMemo(() => calculateCoordinatorStats(coordinators), [coordinators])
+  // Dynamic calculations from live DB data
+  const totalCoordinators = coordinators.length
+  const uniqueBlocksCount = new Set(
+    coordinators.map((c) => (c.block || '').trim()).filter(Boolean)
+  ).size
+
+  const stats: CoordinatorStatItem[] = [
+    {
+      title: 'Total Coordinators',
+      count: totalCoordinators.toString(),
+      change: `${uniqueBlocksCount} unique blocks covered`,
+      icon: Users,
+      color: 'bg-lightblue/15 text-lightblue dark:bg-lightblue/25',
+    },
+  ]
+
+  // Get grievance count matching a coordinator's block
+  const getCasesForBlock = (blockName: string | null) => {
+    if (!blockName) return { active: 0, resolved: 0 }
+    const norm = blockName.toLowerCase()
+    const matching = grievances.filter(
+      (g) => (g.room_no_and_block_name || '').toLowerCase().includes(norm)
+    )
+    const active = matching.filter((g) => {
+      const s = (g.status || '').toLowerCase()
+      return s === 'pending' || s === 'in progress' || s === 'under review'
+    }).length
+    const resolved = matching.filter(
+      (g) => (g.status || '').toLowerCase() === 'resolved'
+    ).length
+    return { active, resolved }
+  }
 
   const hasActionColumn = canEditCoordinator || canDeleteCoordinator
 
@@ -388,7 +418,7 @@ export const BlockCoordinators = ({
               </div>
             }
             renderItem={(c, idx) => {
-              const blockCases = getCoordinatorCases(grievances, c.block)
+              const blockCases = getCasesForBlock(c.block)
               return (
                 <ListItem
                   key={`${c.name}-${c.block}-${idx}`}

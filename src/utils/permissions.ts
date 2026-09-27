@@ -175,7 +175,7 @@ export const checkCanDeleteGrievance = (
 }
 
 /**
- * Helper to check if a role is super_admin. ONLY super_admin has universal bypass.
+ * Helper to check if a role is super_admin. Only super_admin has unconditional bypass.
  */
 export const isSuperAdmin = (role?: string | null): boolean => {
   if (!role) return false
@@ -193,8 +193,8 @@ export const isAdminOrSuperAdmin = (role?: string | null): boolean => {
 }
 
 /**
- * Checks if user has permission to create/add block coordinators.
- * Matches ONLY permission 'Add Coordinators' / 'Manage Coordinators' / action='add'|'create'|'insert'|'manage' on resource 'block_coordinators'.
+ * Checks if user has permission to create/add/manage block coordinators.
+ * Matches ONLY permission 'Manage Coordinators' / 'Add Coordinators' / action='add'|'create'|'insert'|'manage' on resource 'block_coordinators'.
  */
 export const checkCanCreateCoordinator = (
   permissions: PermissionRow[] | null | undefined
@@ -214,6 +214,7 @@ export const checkCanCreateCoordinator = (
 }
 
 export const checkCanAddCoordinator = checkCanCreateCoordinator
+export const checkCanManageCoordinators = checkCanCreateCoordinator
 
 /**
  * Checks if user has permission to edit block coordinators.
@@ -246,25 +247,6 @@ export const checkCanDeleteCoordinator = (
     hasPermissionName(permissions, 'Delete Block Coordinators') ||
     hasPermissionName(permissions, 'delete_coordinators') ||
     hasPermissionName(permissions, 'delete_block_coordinator')
-  )
-}
-
-/**
- * Checks if user has permission to manage block coordinators (create, edit, or delete).
- * Matches permission 'Manage Coordinators' / 'Add Coordinators' on resource 'block_coordinators'.
- */
-export const checkCanManageCoordinators = (
-  permissions: PermissionRow[] | null | undefined
-): boolean => {
-  return (
-    hasPermission(permissions, 'block_coordinators', 'add') ||
-    hasPermission(permissions, 'block_coordinators', 'create') ||
-    hasPermission(permissions, 'block_coordinators', 'insert') ||
-    hasPermission(permissions, 'block_coordinators', 'manage') ||
-    hasPermissionName(permissions, 'Add Coordinators') ||
-    hasPermissionName(permissions, 'Manage Coordinators') ||
-    hasPermissionName(permissions, 'Add Block Coordinators') ||
-    hasPermissionName(permissions, 'manage_coordinators')
   )
 }
 

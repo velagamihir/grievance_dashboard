@@ -101,6 +101,7 @@ export function usePermissions(): UserPermissionsState {
         }
       }
 
+      console.log('[Permissions] Authenticated User UID:', user.uid, '| DB Role:', userRole)
       setRole(userRole)
 
       if (!userRole) {
@@ -112,6 +113,7 @@ export function usePermissions(): UserPermissionsState {
 
       // If user is super_admin, grant ALL permissions
       if (isSuperAdmin(cleanRole)) {
+        console.log('[Permissions] super_admin detected: granting all permissions')
         setPermissions(availablePerms)
         return
       }
@@ -177,6 +179,7 @@ export function usePermissions(): UserPermissionsState {
         matchedPerms = availablePerms.filter((p) => grantedSet.has(String(p.id).trim()))
       }
 
+      console.log('[Permissions] Active DB Permissions for', cleanRole, ':', matchedPerms.map((p) => p.name))
       setPermissions(matchedPerms)
     } catch (err) {
       console.error('[Permissions] Error resolving user permissions:', err)

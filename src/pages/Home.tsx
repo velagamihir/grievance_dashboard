@@ -9,15 +9,8 @@ import { usePermissions } from '../hooks/usePermissions'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { supabase } from '../lib/supabase'
 import { Button, Drawer, Header } from '../components'
-import {
-  formatDate,
-  getStatusBadgeClass,
-  calculateGrievanceStats,
-  getRecentGrievances,
-  getGrievanceLocation,
-  getUserDisplayName,
-} from '../utils'
-import type { HomeProps, FormResponseRow } from '../types'
+import { formatDate, getStatusBadgeClass } from '../utils'
+import type { HomeProps, DashboardStatItem, FormResponseRow } from '../types'
 
 export const Home = ({
   isDark,
@@ -91,7 +84,6 @@ export const Home = ({
         isDark={isDark}
         onToggleTheme={onToggleTheme}
         onOpenDrawer={() => setIsDrawerOpen(true)}
-        role={role}
         userEmail={user?.email}
         onSignOut={() => signOutUser()}
       />
