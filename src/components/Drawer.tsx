@@ -37,21 +37,13 @@ export const Drawer: React.FC<DrawerProps> = ({
 
       try {
         setLoading(true)
-        console.group('[Drawer] 🚀 Initializing Navigation Routes')
-        console.log('[Drawer] Authenticated User:', { uid: user.uid, email: user.email })
 
         // 1. Fetch user profile for assigned role
-        const { data: profile, error: profileError } = await supabase
+        const { data: profile } = await supabase
           .from('profiles')
           .select('firebase_uid, role')
           .eq('firebase_uid', user.uid)
           .maybeSingle()
-
-        if (profileError) {
-          console.warn('[Drawer] Profiles table query error:', profileError.message)
-        } else {
-          console.log('[Drawer] Profiles table query result:', profile)
-        }
 
         const userRole = profile?.role || null
         if (isMounted) {
@@ -62,7 +54,6 @@ export const Drawer: React.FC<DrawerProps> = ({
 
         // 2. If user has an assigned role, query role_routes
         if (userRole) {
-          console.log(`[Drawer] Querying role_routes for role: "${userRole}"...`)
           const { data: roleRoutes, error: routesError } = await supabase
             .from('role_routes')
             .select(`
@@ -78,32 +69,20 @@ export const Drawer: React.FC<DrawerProps> = ({
             `)
             .ilike('role', userRole)
 
-          if (routesError) {
-            console.warn('[Drawer] role_routes query error:', routesError.message)
-          } else {
-            console.log('[Drawer] role_routes query result:', roleRoutes)
-            if (roleRoutes && roleRoutes.length > 0) {
-              const parsed = (roleRoutes as unknown as RoleRouteItem[])
-                .map((item) => (Array.isArray(item.routes) ? item.routes[0] : item.routes))
-                .filter((r): r is RouteData => r !== null && typeof r === 'object')
-                .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+          if (!routesError && roleRoutes && roleRoutes.length > 0) {
+            const parsed = (roleRoutes as unknown as RoleRouteItem[])
+              .map((item) => (Array.isArray(item.routes) ? item.routes[0] : item.routes))
+              .filter((r): r is RouteData => r !== null && typeof r === 'object')
+              .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
 
-              resolvedRoutes = parsed
-            }
+            resolvedRoutes = parsed
           }
-        } else {
-          console.log('[Drawer] User has no role in profiles table. No routes authorized.')
         }
-
-        console.log('[Drawer] Final resolved routes to display:', resolvedRoutes)
-        console.groupEnd()
 
         if (isMounted) {
           setRoutes(resolvedRoutes)
         }
-      } catch (err) {
-        console.error('[Drawer] Unexpected error loading navigation:', err)
-        console.groupEnd()
+      } catch {
         if (isMounted) {
           setRoutes([])
         }

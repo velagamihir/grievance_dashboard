@@ -32,7 +32,7 @@ export const BlockCoordinators = ({
 }: BlockCoordinatorsProps) => {
   useDocumentTitle('Block Coordinators | Grievance Portal')
   const { user, signOutUser } = useAuth()
-  const { role, hasPermission } = usePermissions()
+  const { canViewCoordinators, canManageCoordinators, loading: permissionsLoading } = usePermissions()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [coordinators, setCoordinators] = useState<BlockCoordinatorRow[]>([])
@@ -50,6 +50,13 @@ export const BlockCoordinators = ({
   const [formError, setFormError] = useState<string | null>(null)
 
   const fetchData = async () => {
+    if (!canViewCoordinators) {
+      setCoordinators([])
+      setGrievances([])
+      setLoading(false)
+      return
+    }
+
     try {
       setLoading(true)
       const [coordRes, grvRes] = await Promise.all([
@@ -58,31 +65,42 @@ export const BlockCoordinators = ({
       ])
 
       if (coordRes.error) {
-        console.error('[BlockCoordinators] Error querying block_coordinators:', coordRes.error.message)
         setCoordinators([])
       } else {
         setCoordinators(coordRes.data || [])
       }
 
       if (grvRes.error) {
-        console.warn('[BlockCoordinators] Error querying form_responses:', grvRes.error.message)
         setGrievances([])
       } else {
         setGrievances(grvRes.data || [])
       }
-    } catch (err) {
-      console.error('[BlockCoordinators] Unexpected error:', err)
+    } catch {
+      setCoordinators([])
+      setGrievances([])
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchData()
-  }, [])
+    if (!permissionsLoading) {
+      if (canViewCoordinators) {
+        fetchData()
+      } else {
+        setCoordinators([])
+        setGrievances([])
+        setLoading(false)
+      }
+    }
+  }, [permissionsLoading, canViewCoordinators])
 
   const handleAddCoordinator = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!canManageCoordinators) {
+      setFormError('Permission Denied: You do not have permission to manage coordinators.')
+      return
+    }
     if (!newCoordinator.name.trim() || !newCoordinator.block.trim()) {
       setFormError('Name and Block are required.')
       return
@@ -190,7 +208,7 @@ export const BlockCoordinators = ({
     return { active, resolved }
   }
 
-  const canManage = hasPermission('block_coordinators', 'insert') || role === 'admin'
+  const canManage = canManageCoordinators
 
   return (
     <div className="min-h-screen bg-offwhite dark:bg-[#151726] text-darkblue dark:text-offwhite transition-colors duration-200">
@@ -365,10 +383,16 @@ export const BlockCoordinators = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray/15">
-                {loading ? (
+                {loading || permissionsLoading ? (
                   <tr>
                     <td colSpan={5} className="py-8 text-center text-gray text-xs">
                       Loading coordinators from database...
+                    </td>
+                  </tr>
+                ) : !canViewCoordinators ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-gray text-xs">
+                      Access Restricted: You do not have permission to view block coordinators.
                     </td>
                   </tr>
                 ) : filteredCoordinators.length === 0 ? (

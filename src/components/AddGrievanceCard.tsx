@@ -13,7 +13,8 @@ import {
 import { InputCard } from './InputCard'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { GRIEVANCE_TYPES, initialGrievanceFormData } from '../utils'
+import { usePermissions } from '../hooks/usePermissions'
+import { STATUS_OPTIONS, GRIEVANCE_TYPES, initialGrievanceFormData } from '../utils'
 import type {
   AddGrievanceCardProps,
   GrievanceFormData,
@@ -36,6 +37,7 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
   readOnlyStatus = false,
 }) => {
   const { user } = useAuth()
+  const { canCreateGrievance, loading: permissionsLoading } = usePermissions()
 
   const [sources, setSources] = useState<string[]>(['Form', 'Web Portal', 'Mobile App', 'Kiosk'])
   const [formData, setFormData] = useState<GrievanceFormData>(() => ({
@@ -67,8 +69,8 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
             }))
           }
         }
-      } catch (err) {
-        console.warn('[AddGrievanceCard] Error fetching sources:', err)
+      } catch {
+        // Silent catch for sources
       }
     }
 
@@ -116,7 +118,7 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
       label: 'Initial Status',
       type: 'select',
       disabled: readOnlyStatus,
-      options: ['Pending', 'Under Review', 'In Progress', 'Resolved', 'Rejected'],
+      options: STATUS_OPTIONS.map((s) => s.value),
       colSpan: 1,
     },
     {
@@ -185,6 +187,14 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
     e.preventDefault()
     setAlert(null)
 
+    if (!canCreateGrievance) {
+      setAlert({
+        type: 'error',
+        message: 'Permission Denied: Your assigned role does not have permission to file grievances.',
+      })
+      return
+    }
+
     const finalData: GrievanceFormData = {
       ...formData,
       ...values,
@@ -192,7 +202,7 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
       email: values.email || formData.email,
       problem_description: values.problem_description || formData.problem_description,
       type_of_grievance: values.type_of_grievance || formData.type_of_grievance,
-      status: values.status || formData.status || 'Pending',
+      status: values.status || formData.status || 'Not Yet Started',
     }
 
     try {
@@ -216,7 +226,7 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
         bus_route: finalData.bus_route?.trim() || '',
         bus_number: finalData.bus_number?.trim() || '',
         suggestions: finalData.suggestions?.trim() || '',
-        status: finalData.status || 'Pending',
+        status: finalData.status || 'Not Yet Started',
         source: finalData.source || 'Web Portal',
         created_at: new Date().toISOString(),
       }
@@ -228,7 +238,6 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
         .single()
 
       if (error) {
-        console.warn('[AddGrievanceCard] Supabase insert error:', error.message)
         const fallbackCreated: FormResponseRow = {
           id: Date.now(),
           ...newRecord,
@@ -240,12 +249,20 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
         if (onSuccess) onSuccess(data as FormResponseRow)
       }
     } catch (err: any) {
-      console.error('[AddGrievanceCard] Error:', err)
       setAlert({ type: 'error', message: err?.message || 'Failed to submit grievance.' })
     } finally {
       setSubmitting(false)
     }
   }
+
+  const effectiveAlert =
+    !canCreateGrievance && !permissionsLoading
+      ? {
+          type: 'error' as const,
+          message:
+            'Permission Denied: Your assigned role does not have permission to file new grievances.',
+        }
+      : alert
 
   return (
     <InputCard
@@ -262,8 +279,9 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
       showCancel={showCancel}
       submitButtonText={submitButtonText}
       isLoading={submitting}
+      disabled={!canCreateGrievance && !permissionsLoading}
       className={className}
-      alert={alert}
+      alert={effectiveAlert}
     />
   )
 }

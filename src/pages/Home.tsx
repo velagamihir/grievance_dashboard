@@ -13,6 +13,7 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { usePermissions } from '../hooks/usePermissions'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { supabase } from '../lib/supabase'
 import { Button } from '../components/Buttons'
@@ -28,11 +29,18 @@ export const Home = ({
 }: HomeProps) => {
   useDocumentTitle('Dashboard | Grievance Portal')
   const { user, signOutUser } = useAuth()
+  const { canViewAllGrievances, loading: permissionsLoading } = usePermissions()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [grievances, setGrievances] = useState<FormResponseRow[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchGrievances = async () => {
+    if (!canViewAllGrievances) {
+      setGrievances([])
+      setLoading(false)
+      return
+    }
+
     try {
       setLoading(true)
       const { data, error } = await supabase
@@ -41,13 +49,11 @@ export const Home = ({
         .order('id', { ascending: false })
 
       if (error) {
-        console.error('[Home] Error fetching grievances from DB:', error.message)
         setGrievances([])
       } else {
         setGrievances(data || [])
       }
-    } catch (err) {
-      console.error('[Home] Unexpected error fetching grievances:', err)
+    } catch {
       setGrievances([])
     } finally {
       setLoading(false)
@@ -55,8 +61,15 @@ export const Home = ({
   }
 
   useEffect(() => {
-    fetchGrievances()
-  }, [])
+    if (!permissionsLoading) {
+      if (canViewAllGrievances) {
+        fetchGrievances()
+      } else {
+        setGrievances([])
+        setLoading(false)
+      }
+    }
+  }, [permissionsLoading, canViewAllGrievances])
 
   // Dynamic statistics calculated directly from Supabase form_responses
   const totalCount = grievances.length
