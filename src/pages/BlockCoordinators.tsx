@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   Users,
   MapPin,
@@ -23,7 +23,8 @@ import {
   Modal,
   ConfirmModal,
 } from '../components'
-import type { BlockCoordinatorsProps, BlockCoordinatorRow, CoordinatorStatItem, FormResponseRow } from '../types'
+import { calculateCoordinatorStats, getCoordinatorCases } from '../utils'
+import type { BlockCoordinatorsProps, BlockCoordinatorRow, FormResponseRow } from '../types'
 
 export const BlockCoordinators = ({
   isDark,

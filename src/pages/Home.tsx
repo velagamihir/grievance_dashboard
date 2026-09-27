@@ -1,9 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   Inbox,
-  Clock,
-  CheckCircle2,
-  AlertCircle,
   TrendingUp,
   RefreshCw,
 } from 'lucide-react'
@@ -23,7 +20,7 @@ export const Home = ({
 }: HomeProps) => {
   useDocumentTitle('Dashboard | Grievance Portal')
   const { user, signOutUser } = useAuth()
-  const { canViewAllGrievances, loading: permissionsLoading } = usePermissions()
+  const { role, canViewAllGrievances, loading: permissionsLoading } = usePermissions()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [grievances, setGrievances] = useState<FormResponseRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -65,51 +62,10 @@ export const Home = ({
     }
   }, [permissionsLoading, canViewAllGrievances])
 
-  // Dynamic statistics calculated directly from Supabase form_responses
-  const totalCount = grievances.length
-  const notStartedCount = grievances.filter((g) => {
-    const s = (g.status || '').toLowerCase()
-    return s === 'not yet started' || s === 'pending'
-  }).length
-  const inProgressCount = grievances.filter(
-    (g) => (g.status || '').toLowerCase() === 'in progress'
-  ).length
-  const resolvedCount = grievances.filter(
-    (g) => (g.status || '').toLowerCase() === 'resolved'
-  ).length
-
-  const stats: DashboardStatItem[] = [
-    {
-      title: 'Total Grievances',
-      count: totalCount.toString(),
-      change: `${totalCount} records logged in DB`,
-      icon: Inbox,
-      color: 'bg-lightblue/15 text-lightblue dark:bg-lightblue/25',
-    },
-    {
-      title: 'Not Yet Started',
-      count: notStartedCount.toString(),
-      change: `${notStartedCount} awaiting initial review`,
-      icon: Clock,
-      color: 'bg-orange/15 text-orange dark:bg-orange/25',
-    },
-    {
-      title: 'In Progress',
-      count: inProgressCount.toString(),
-      change: `${inProgressCount} currently active`,
-      icon: AlertCircle,
-      color: 'bg-darkblue/15 text-darkblue dark:bg-darkblue/40 dark:text-offwhite',
-    },
-    {
-      title: 'Resolved',
-      count: resolvedCount.toString(),
-      change: `${resolvedCount} resolved successfully`,
-      icon: CheckCircle2,
-      color: 'bg-green-500/15 text-green-600 dark:bg-green-500/25 dark:text-green-400',
-    },
-  ]
-
-  const recentGrievances = grievances.slice(0, 6)
+  // Dynamic statistics and recent list derived via extracted utils
+  const stats = useMemo(() => calculateGrievanceStats(grievances), [grievances])
+  const recentGrievances = useMemo(() => getRecentGrievances(grievances, 6), [grievances])
+  const userDisplayName = useMemo(() => getUserDisplayName(user), [user])
 
   return (
     <div className="min-h-screen bg-offwhite dark:bg-[#151726] text-darkblue dark:text-offwhite transition-colors duration-200">
@@ -142,7 +98,7 @@ export const Home = ({
               Real-time Grievance Analytics
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              Welcome back, {user?.email?.split('@')[0] || 'User'}
+              Welcome back, {userDisplayName}
             </h2>
             <p className="text-sm sm:text-base text-offwhite/85">
               Live overview of active grievances, resolution status, and logged complaints queried directly from the database.
@@ -264,7 +220,7 @@ export const Home = ({
                         <div className="text-gray text-[11px]">{item.email || '-'}</div>
                       </td>
                       <td className="py-4 text-gray text-xs">
-                        {item.branch || item.room_no_and_block_name || item.bus_route || '-'}
+                        {getGrievanceLocation(item)}
                       </td>
                       <td className="py-4 text-gray text-xs">
                         {formatDate(item.created_at)}
