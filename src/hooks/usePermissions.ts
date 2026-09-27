@@ -11,6 +11,10 @@ import {
   checkCanViewAllGrievances,
   checkCanManageCoordinators,
   checkCanViewCoordinators,
+  checkCanCreateCoordinator,
+  checkCanEditCoordinator,
+  checkCanDeleteCoordinator,
+  isAdminOrSuperAdmin,
 } from '../utils'
 import type { PermissionRow } from '../types'
 
@@ -19,6 +23,7 @@ export interface UserPermissionsState {
   permissions: PermissionRow[]
   allPermissions: PermissionRow[]
   loading: boolean
+  isAdminOrSuperAdmin: boolean
   hasPermission: (resource: string, action: string) => boolean
   hasPermissionName: (name: string) => boolean
   canCreateGrievance: boolean
@@ -28,6 +33,9 @@ export interface UserPermissionsState {
   canViewAllGrievances: boolean
   canManageCoordinators: boolean
   canViewCoordinators: boolean
+  canCreateCoordinator: boolean
+  canEditCoordinator: boolean
+  canDeleteCoordinator: boolean
   refreshPermissions: () => Promise<void>
 }
 
@@ -42,6 +50,11 @@ const KNOWN_PERMISSIONS: PermissionRow[] = [
   { id: 7, name: 'Edit Grievances', resource: 'grievances', action: 'edit', description: 'Edit Grievances', created_at: '2026-09-27' },
   { id: 8, name: 'Delete Grievances', resource: 'grievances', action: 'delete', description: 'Delete Grievances', created_at: '2026-09-27' },
   { id: 10, name: 'Edit Status Grievances', resource: 'grievances', action: 'edit status', description: 'Edit Status Grievances', created_at: '2026-09-27' },
+  { id: 11, name: 'View Block Coordinators', resource: 'block_coordinators', action: 'view', description: 'View Block Coordinators', created_at: '2026-09-27' },
+  { id: 12, name: 'Add Block Coordinators', resource: 'block_coordinators', action: 'add', description: 'Add Block Coordinators', created_at: '2026-09-27' },
+  { id: 13, name: 'Edit Block Coordinators', resource: 'block_coordinators', action: 'edit', description: 'Edit Block Coordinators', created_at: '2026-09-27' },
+  { id: 14, name: 'Delete Block Coordinators', resource: 'block_coordinators', action: 'delete', description: 'Delete Block Coordinators', created_at: '2026-09-27' },
+  { id: 15, name: 'Manage Coordinators', resource: 'block_coordinators', action: 'manage', description: 'Manage Block Coordinators', created_at: '2026-09-27' },
 ]
 
 export function usePermissions(): UserPermissionsState {
@@ -155,20 +168,25 @@ export function usePermissions(): UserPermissionsState {
   const hasPermissionName = (name: string): boolean =>
     checkPermissionName(permissions, name)
 
-  // Derived capabilities using utils logic based purely on DB permissions
+  // Derived capabilities using utils logic based purely on DB permissions & role
   const canCreateGrievance = checkCanCreateGrievance(permissions)
   const canEditGrievance = checkCanEditGrievance(permissions)
   const canEditStatus = checkCanEditStatus(permissions)
   const canDeleteGrievance = checkCanDeleteGrievance(permissions)
   const canViewAllGrievances = checkCanViewAllGrievances(permissions)
-  const canManageCoordinators = checkCanManageCoordinators(permissions)
-  const canViewCoordinators = checkCanViewCoordinators(permissions)
+  const isSuperOrAdmin = isAdminOrSuperAdmin(role)
+  const canManageCoordinators = checkCanManageCoordinators(permissions, role)
+  const canViewCoordinators = checkCanViewCoordinators(permissions, role)
+  const canCreateCoordinator = checkCanCreateCoordinator(permissions, role)
+  const canEditCoordinator = checkCanEditCoordinator(permissions, role)
+  const canDeleteCoordinator = checkCanDeleteCoordinator(permissions, role)
 
   return {
     role,
     permissions,
     allPermissions,
     loading,
+    isAdminOrSuperAdmin: isSuperOrAdmin,
     hasPermission,
     hasPermissionName,
     canCreateGrievance,
@@ -178,6 +196,9 @@ export function usePermissions(): UserPermissionsState {
     canViewAllGrievances,
     canManageCoordinators,
     canViewCoordinators,
+    canCreateCoordinator,
+    canEditCoordinator,
+    canDeleteCoordinator,
     refreshPermissions: fetchPermissions,
   }
 }
