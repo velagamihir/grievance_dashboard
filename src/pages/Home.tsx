@@ -16,17 +16,18 @@ import {
 import { useAuth } from '../context/AuthContext'
 import { Button } from '../components/Buttons'
 import { Drawer } from '../components/Drawer'
+import type { HomeProps, DashboardStatItem, RecentGrievanceItem } from '../types'
 
-interface HomeProps {
-  isDark: boolean
-  onToggleTheme: () => void
-}
-
-export const Home = ({ isDark, onToggleTheme }: HomeProps) => {
+export const Home = ({
+  isDark,
+  onToggleTheme,
+  currentPath = '/',
+  onNavigate,
+}: HomeProps) => {
   const { user, signOutUser } = useAuth()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
 
-  const stats = [
+  const stats: DashboardStatItem[] = [
     {
       title: 'Total Grievances',
       count: '128',
@@ -57,7 +58,7 @@ export const Home = ({ isDark, onToggleTheme }: HomeProps) => {
     },
   ]
 
-  const recentGrievances = [
+  const recentGrievances: RecentGrievanceItem[] = [
     {
       id: 'GRV-2026-089',
       title: 'Delay in Document Verification',
@@ -95,7 +96,12 @@ export const Home = ({ isDark, onToggleTheme }: HomeProps) => {
   return (
     <div className="min-h-screen bg-offwhite dark:bg-[#151726] text-darkblue dark:text-offwhite transition-colors duration-200">
       {/* Navigation Drawer */}
-      <Drawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
+      <Drawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        currentPath={currentPath}
+        onNavigate={onNavigate}
+      />
 
       {/* Top Navbar */}
       <header className="sticky top-0 z-30 bg-white/80 dark:bg-[#1a1d2e]/80 backdrop-blur-md border-b border-gray/20">

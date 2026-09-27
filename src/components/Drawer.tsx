@@ -27,25 +27,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
-
-interface RouteData {
-  name: string
-  path: string
-  icon: string
-  sort_order?: number
-}
-
-interface RoleRouteItem {
-  route_id: number | string
-  routes: RouteData | RouteData[] | null
-}
-
-interface DrawerProps {
-  isOpen: boolean
-  onClose: () => void
-  currentPath?: string
-  onNavigate?: (path: string) => void
-}
+import type { RouteData, RoleRouteItem, DrawerProps } from '../types'
 
 // Icon dictionary mapping database icon keys to Lucide icons
 const iconMap: Record<string, LucideIcon> = {
