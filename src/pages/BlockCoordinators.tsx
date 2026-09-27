@@ -23,7 +23,7 @@ import {
   Modal,
   ConfirmModal,
 } from '../components'
-import { calculateCoordinatorStats, getCoordinatorCases } from '../utils'
+import { calculateCoordinatorStats, getCoordinatorCases, validateCoordinatorForm } from '../utils'
 import type { BlockCoordinatorsProps, BlockCoordinatorRow, FormResponseRow } from '../types'
 
 export const BlockCoordinators = ({
@@ -131,8 +131,10 @@ export const BlockCoordinators = ({
       setFormError('Permission Denied: You do not have permission to add coordinators.')
       return
     }
-    if (!newCoordinator.name.trim() || !newCoordinator.block.trim()) {
-      setFormError('Name and Block are required.')
+
+    const validation = validateCoordinatorForm(newCoordinator)
+    if (!validation.isValid) {
+      setFormError(validation.errorMessage || 'All fields (Name, Block, and Phone Number) are required.')
       return
     }
 
@@ -186,8 +188,10 @@ export const BlockCoordinators = ({
       setEditFormError('Permission Denied: You do not have permission to edit coordinators.')
       return
     }
-    if (!editForm.name.trim() || !editForm.block.trim()) {
-      setEditFormError('Name and Block are required.')
+
+    const validation = validateCoordinatorForm(editForm)
+    if (!validation.isValid) {
+      setEditFormError(validation.errorMessage || 'All fields (Name, Block, and Phone Number) are required.')
       return
     }
 
@@ -499,6 +503,7 @@ export const BlockCoordinators = ({
             label="Phone Number"
             placeholder="e.g. +91 98765 43210"
             type="tel"
+            required
             value={newCoordinator.phone_no}
             onChange={(e) =>
               setNewCoordinator((prev) => ({ ...prev, phone_no: e.target.value }))
@@ -564,6 +569,7 @@ export const BlockCoordinators = ({
             label="Phone Number"
             placeholder="e.g. +91 98765 43210"
             type="tel"
+            required
             value={editForm.phone_no}
             onChange={(e) =>
               setEditForm((prev) => ({ ...prev, phone_no: e.target.value }))

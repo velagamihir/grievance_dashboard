@@ -99,3 +99,43 @@ export const validateGrievanceForm = (
     errorMessage,
   }
 }
+
+/**
+ * Validates Block Coordinator form submission data.
+ * All fields (name, block, phone_no) are required.
+ *
+ * @param data Coordinator form data
+ * @returns ValidationResult with status, per-field errors, and primary error message
+ */
+export const validateCoordinatorForm = (
+  data: {
+    name?: string | null
+    block?: string | null
+    phone_no?: string | null
+  }
+): ValidationResult => {
+  const errors: Record<string, string> = {}
+
+  if (!data.name || !data.name.trim()) {
+    errors.name = 'Full name is required.'
+  }
+
+  if (!data.block || !data.block.trim()) {
+    errors.block = 'Block / Ward name is required.'
+  }
+
+  if (!data.phone_no || !data.phone_no.trim()) {
+    errors.phone_no = 'Phone number is required.'
+  }
+
+  const isValid = Object.keys(errors).length === 0
+  const firstErrorKey = Object.keys(errors)[0]
+  const errorMessage = firstErrorKey ? errors[firstErrorKey] : null
+
+  return {
+    isValid,
+    errors,
+    errorMessage,
+  }
+}
+
