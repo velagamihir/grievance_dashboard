@@ -11,6 +11,11 @@ import {
   checkCanViewAllGrievances,
   checkCanManageCoordinators,
   checkCanViewCoordinators,
+  checkCanCreateCoordinator,
+  checkCanEditCoordinator,
+  checkCanDeleteCoordinator,
+  isAdminOrSuperAdmin,
+  isSuperAdmin,
 } from '../utils'
 import type { PermissionRow } from '../types'
 
@@ -19,6 +24,8 @@ export interface UserPermissionsState {
   permissions: PermissionRow[]
   allPermissions: PermissionRow[]
   loading: boolean
+  isSuperAdmin: boolean
+  isAdminOrSuperAdmin: boolean
   hasPermission: (resource: string, action: string) => boolean
   hasPermissionName: (name: string) => boolean
   canCreateGrievance: boolean
@@ -28,21 +35,12 @@ export interface UserPermissionsState {
   canViewAllGrievances: boolean
   canManageCoordinators: boolean
   canViewCoordinators: boolean
+  canCreateCoordinator: boolean
+  canAddCoordinator: boolean
+  canEditCoordinator: boolean
+  canDeleteCoordinator: boolean
   refreshPermissions: () => Promise<void>
 }
-
-// Canonical permissions catalog fallback in case Supabase RLS limits anon SELECT on permissions table
-const KNOWN_PERMISSIONS: PermissionRow[] = [
-  { id: 1, name: 'View Users', resource: 'users', action: 'view', description: 'View users', created_at: '2026-09-26' },
-  { id: 2, name: 'Add Users', resource: 'users', action: 'add', description: 'Create users', created_at: '2026-09-26' },
-  { id: 3, name: 'Edit Users', resource: 'users', action: 'edit', description: 'Edit users', created_at: '2026-09-26' },
-  { id: 4, name: 'Delete Users', resource: 'users', action: 'delete', description: 'Delete users', created_at: '2026-09-26' },
-  { id: 5, name: 'View Grievances', resource: 'grievances', action: 'view', description: 'View Grievances', created_at: '2026-09-27' },
-  { id: 6, name: 'Add Grievances', resource: 'grievances', action: 'add', description: 'Add Grievances', created_at: '2026-09-27' },
-  { id: 7, name: 'Edit Grievances', resource: 'grievances', action: 'edit', description: 'Edit Grievances', created_at: '2026-09-27' },
-  { id: 8, name: 'Delete Grievances', resource: 'grievances', action: 'delete', description: 'Delete Grievances', created_at: '2026-09-27' },
-  { id: 10, name: 'Edit Status Grievances', resource: 'grievances', action: 'edit status', description: 'Edit Status Grievances', created_at: '2026-09-27' },
-]
 
 export function usePermissions(): UserPermissionsState {
   const { user } = useAuth()
@@ -63,24 +61,31 @@ export function usePermissions(): UserPermissionsState {
     try {
       setLoading(true)
 
-      // 1. Fetch all records from the `permissions` table
-      const { data: allPermsData } = await supabase
+      // 1. Fetch all records directly from the `permissions` table
+      const { data: allPermsData, error: permsError } = await supabase
         .from('permissions')
         .select('*')
         .order('id', { ascending: true })
 
-      const availablePerms: PermissionRow[] =
-        allPermsData && allPermsData.length > 0 ? (allPermsData as PermissionRow[]) : KNOWN_PERMISSIONS
+      if (permsError) {
+        console.error('[Permissions] Error fetching permissions from DB:', permsError)
+      }
+
+      const availablePerms: PermissionRow[] = allPermsData || []
       setAllPermissions(availablePerms)
 
-      // 2. Fetch user's assigned role from `profiles` (check firebase_uid, then email)
+      // 2. Fetch user's assigned role from `profiles`
       let userRole: string | null = null
 
-      const { data: profileByUid } = await supabase
+      const { data: profileByUid, error: uidError } = await supabase
         .from('profiles')
         .select('role')
         .eq('firebase_uid', user.uid)
         .maybeSingle()
+
+      if (uidError) {
+        console.error('[Permissions] Error fetching profile by uid:', uidError)
+      }
 
       if (profileByUid?.role) {
         userRole = profileByUid.role
@@ -96,6 +101,7 @@ export function usePermissions(): UserPermissionsState {
         }
       }
 
+      console.log('[Permissions] Authenticated User UID:', user.uid, '| DB Role:', userRole)
       setRole(userRole)
 
       if (!userRole) {
@@ -103,41 +109,80 @@ export function usePermissions(): UserPermissionsState {
         return
       }
 
-      const cleanRole = userRole.trim()
+      const cleanRole = userRole.trim().toLowerCase()
+
+      // If user is super_admin, grant ALL permissions
+      if (isSuperAdmin(cleanRole)) {
+        console.log('[Permissions] super_admin detected: granting all permissions')
+        setPermissions(availablePerms)
+        return
+      }
 
       // 3. Find matching role from `roles` table
-      const { data: allRoles } = await supabase
+      const { data: allRoles, error: rolesError } = await supabase
         .from('roles')
         .select('id, name')
 
+      if (rolesError) {
+        console.error('[Permissions] Error fetching roles from DB:', rolesError)
+      }
+
       const matchedRole = (allRoles || []).find(
         (r: any) =>
-          r.name?.toLowerCase().trim() === cleanRole.toLowerCase() ||
+          r.name?.toLowerCase().trim() === cleanRole ||
           String(r.id) === cleanRole
       )
 
       const roleId = matchedRole ? matchedRole.id : (!isNaN(Number(cleanRole)) ? Number(cleanRole) : null)
 
-      // 4. Query role_permissions for this roleId
+      if (roleId === null) {
+        setPermissions([])
+        return
+      }
+
+      // 4. Query role_permissions with joined permissions
+      const { data: rpData, error: rpError } = await supabase
+        .from('role_permissions')
+        .select(`
+          permission_id,
+          permissions (
+            id,
+            name,
+            resource,
+            action,
+            description
+          )
+        `)
+        .eq('role_id', roleId)
+
+      if (rpError) {
+        console.error('[Permissions] Error fetching role_permissions from DB:', rpError)
+      }
+
       let grantedPermissionIds: string[] = []
+      let joinedPerms: PermissionRow[] = []
 
-      if (roleId !== null) {
-        const { data: rpData } = await supabase
-          .from('role_permissions')
-          .select('permission_id')
-          .eq('role_id', roleId)
-
-        if (rpData && rpData.length > 0) {
-          grantedPermissionIds = rpData.map((rp: any) => String(rp.permission_id))
-        }
+      if (rpData && rpData.length > 0) {
+        grantedPermissionIds = rpData.map((rp: any) => String(rp.permission_id))
+        joinedPerms = rpData
+          .map((rp: any) => (Array.isArray(rp.permissions) ? rp.permissions[0] : rp.permissions))
+          .filter((p: any): p is PermissionRow => p !== null && typeof p === 'object' && Boolean(p.name))
       }
 
       // 5. Match against available permissions
-      const grantedSet = new Set(grantedPermissionIds)
-      const matchedPerms = availablePerms.filter((p) => grantedSet.has(String(p.id)))
+      let matchedPerms: PermissionRow[] = []
 
+      if (joinedPerms.length > 0) {
+        matchedPerms = joinedPerms
+      } else if (availablePerms.length > 0 && grantedPermissionIds.length > 0) {
+        const grantedSet = new Set(grantedPermissionIds.map((id) => String(id).trim()))
+        matchedPerms = availablePerms.filter((p) => grantedSet.has(String(p.id).trim()))
+      }
+
+      console.log('[Permissions] Active DB Permissions for', cleanRole, ':', matchedPerms.map((p) => p.name))
       setPermissions(matchedPerms)
-    } catch {
+    } catch (err) {
+      console.error('[Permissions] Error resolving user permissions:', err)
       setPermissions([])
     } finally {
       setLoading(false)
@@ -148,27 +193,35 @@ export function usePermissions(): UserPermissionsState {
     fetchPermissions()
   }, [user])
 
-  // Bound helper functions delegating to src/utils/permissions
+  // Helper functions delegating to src/utils/permissions
   const hasPermission = (resource: string, action: string): boolean =>
     checkPermission(permissions, resource, action)
 
   const hasPermissionName = (name: string): boolean =>
     checkPermissionName(permissions, name)
 
-  // Derived capabilities using utils logic based purely on DB permissions
-  const canCreateGrievance = checkCanCreateGrievance(permissions)
-  const canEditGrievance = checkCanEditGrievance(permissions)
-  const canEditStatus = checkCanEditStatus(permissions)
-  const canDeleteGrievance = checkCanDeleteGrievance(permissions)
-  const canViewAllGrievances = checkCanViewAllGrievances(permissions)
-  const canManageCoordinators = checkCanManageCoordinators(permissions)
-  const canViewCoordinators = checkCanViewCoordinators(permissions)
+  const isSuper = isSuperAdmin(role)
+  const isSuperOrAdmin = isAdminOrSuperAdmin(role)
+
+  const canCreateGrievance = isSuper || checkCanCreateGrievance(permissions)
+  const canEditGrievance = isSuper || checkCanEditGrievance(permissions)
+  const canEditStatus = isSuper || checkCanEditStatus(permissions)
+  const canDeleteGrievance = isSuper || checkCanDeleteGrievance(permissions)
+  const canViewAllGrievances = isSuper || checkCanViewAllGrievances(permissions)
+  const canManageCoordinators = isSuper || checkCanManageCoordinators(permissions)
+  const canViewCoordinators = isSuper || checkCanViewCoordinators(permissions)
+  const canCreateCoordinator = isSuper || checkCanCreateCoordinator(permissions)
+  const canAddCoordinator = canCreateCoordinator
+  const canEditCoordinator = isSuper || checkCanEditCoordinator(permissions)
+  const canDeleteCoordinator = isSuper || checkCanDeleteCoordinator(permissions)
 
   return {
     role,
     permissions,
     allPermissions,
     loading,
+    isSuperAdmin: isSuper,
+    isAdminOrSuperAdmin: isSuperOrAdmin,
     hasPermission,
     hasPermissionName,
     canCreateGrievance,
@@ -178,6 +231,10 @@ export function usePermissions(): UserPermissionsState {
     canViewAllGrievances,
     canManageCoordinators,
     canViewCoordinators,
+    canCreateCoordinator,
+    canAddCoordinator,
+    canEditCoordinator,
+    canDeleteCoordinator,
     refreshPermissions: fetchPermissions,
   }
 }

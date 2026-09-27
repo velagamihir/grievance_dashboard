@@ -1,16 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import {
-  Menu,
-  Sun,
-  Moon,
-  LogOut,
   Plus,
   Trash2,
   Edit3,
   AlertCircle,
   CheckCircle2,
   Clock,
-  Shield,
   ShieldAlert,
   User as UserIcon,
   X,
@@ -29,15 +24,16 @@ import { useAuth } from '../context/AuthContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { supabase } from '../lib/supabase'
-import { Button } from '../components/Buttons'
-import { Drawer } from '../components/Drawer'
 import {
+  Button,
+  Drawer,
+  Header,
   List,
   ListItem,
   ListBadge,
-} from '../components/List'
-import { AddGrievanceCard } from '../components/AddGrievanceCard'
-import { InputCard } from '../components/InputCard'
+  AddGrievanceCard,
+  InputCard,
+} from '../components'
 import {
   STATUS_OPTIONS,
   GRIEVANCE_TYPES,
@@ -392,63 +388,17 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
         </div>
       )}
 
-      {/* Top Navbar */}
-      <header className="sticky top-0 z-30 bg-white/80 dark:bg-[#1a1d2e]/80 backdrop-blur-md border-b border-gray/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              type="button"
-              onClick={() => setIsDrawerOpen(true)}
-              className="p-2 rounded-xl text-darkblue dark:text-offwhite hover:bg-gray/10 dark:hover:bg-gray/20 transition-colors focus:outline-none"
-              aria-label="Open navigation drawer"
-            >
-              <Menu className="w-6 h-6" />
-            </button>
-
-            <div>
-              <h1 className="text-lg font-bold text-darkblue dark:text-offwhite leading-none">
-                Grievance Management
-              </h1>
-              <p className="text-xs text-gray mt-0.5 hidden sm:block">
-                Citizen &amp; Student Incident Resolution Console
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {/* Role Badge Indicator */}
-            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-xl bg-lightblue/10 dark:bg-orange/15 text-xs font-semibold text-lightblue dark:text-orange border border-lightblue/20 dark:border-orange/20">
-              <Shield className="w-3.5 h-3.5" />
-              <span className="capitalize">{role || 'Citizen'}</span>
-            </div>
-
-            <button
-              type="button"
-              onClick={onToggleTheme}
-              className="p-2 rounded-xl bg-offwhite dark:bg-[#20243a] border border-gray/20 text-darkblue dark:text-offwhite hover:bg-gray/10 dark:hover:bg-gray/20 transition-colors focus:outline-none"
-              aria-label="Toggle theme"
-            >
-              {isDark ? <Sun className="w-5 h-5 text-orange" /> : <Moon className="w-5 h-5 text-darkblue" />}
-            </button>
-
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-offwhite dark:bg-[#20243a] border border-gray/15 text-xs text-gray">
-              <UserIcon className="w-3.5 h-3.5 text-lightblue" />
-              <span className="max-w-[140px] truncate font-medium text-darkblue dark:text-offwhite">
-                {user?.email || 'User'}
-              </span>
-            </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => signOutUser()}
-              leftIcon={<LogOut className="w-4 h-4" />}
-            >
-              Sign Out
-            </Button>
-          </div>
-        </div>
-      </header>
+      {/* Global Header */}
+      <Header
+        title="Grievance Management"
+        subtitle="Citizen & Student Incident Resolution Console"
+        isDark={isDark}
+        onToggleTheme={onToggleTheme}
+        onOpenDrawer={() => setIsDrawerOpen(true)}
+        role={role}
+        userEmail={user?.email}
+        onSignOut={() => signOutUser()}
+      />
 
       {/* Main Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
