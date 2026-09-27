@@ -409,6 +409,27 @@ export interface CoordinatorStatItem {
 }
 
 // ==========================================
+// Form Validation Types
+// ==========================================
+
+export interface LocationValidationData {
+  room_no_and_block_name?: string | null
+  bus_route?: string | null
+  bus_number?: string | null
+}
+
+export interface LocationValidationResult {
+  isValid: boolean
+  error: string | null
+}
+
+export interface ValidationResult {
+  isValid: boolean
+  errors: Record<string, string>
+  errorMessage: string | null
+}
+
+// ==========================================
 // Database Schema Types (Supabase Public Tables)
 // ==========================================
 

@@ -43,6 +43,7 @@ import {
   getStatusBadgeVariant,
   formatDate,
   exportGrievancesToExcel,
+  validateLocationRequirement,
 } from '../utils'
 import type {
   GrievancePageProps,
@@ -239,6 +240,17 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
 
     if (!canEditGrievance) {
       showToast('Permission Denied: You do not have permission to edit grievance details.', 'error')
+      return
+    }
+
+    const locationValidation = validateLocationRequirement({
+      room_no_and_block_name: formData.room_no_and_block_name,
+      bus_route: formData.bus_route,
+      bus_number: formData.bus_number,
+    })
+
+    if (!locationValidation.isValid) {
+      showToast(locationValidation.error || 'Either Room No & Block or Bus No / Route is mandatory.', 'error')
       return
     }
 

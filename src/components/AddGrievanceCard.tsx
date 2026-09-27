@@ -14,7 +14,7 @@ import { InputCard } from './InputCard'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { STATUS_OPTIONS, GRIEVANCE_TYPES, initialGrievanceFormData } from '../utils'
+import { STATUS_OPTIONS, GRIEVANCE_TYPES, initialGrievanceFormData, validateGrievanceForm } from '../utils'
 import type {
   AddGrievanceCardProps,
   GrievanceFormData,
@@ -41,6 +41,7 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
   const { canCreateGrievance, loading: permissionsLoading } = usePermissions()
 
   const [sources, setSources] = useState<string[]>(['Form', 'Web Portal', 'Mobile App', 'Kiosk'])
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [formData, setFormData] = useState<GrievanceFormData>(() => ({
     ...initialGrievanceFormData,
     name: initialData?.name || user?.displayName || user?.email?.split('@')[0] || '',
@@ -173,14 +174,18 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
       label: 'Room No & Hostel / Block',
       placeholder: 'e.g. Room 304, Block B',
       type: 'text',
+      helperText: 'Mandatory if Bus Number / Route is not specified',
+      error: formErrors.room_no_and_block_name,
       leftIcon: <Building className="w-4 h-4" />,
       colSpan: 1,
     },
     {
       name: 'bus_number',
-      label: 'Bus Number / Route (Optional)',
+      label: 'Bus Number / Route',
       placeholder: 'e.g. Route 14 / KA-01-F-4421',
       type: 'text',
+      helperText: 'Mandatory if Room & Block is not specified',
+      error: formErrors.bus_number,
       leftIcon: <Bus className="w-4 h-4" />,
       colSpan: 1,
     },
@@ -196,11 +201,23 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
 
   const handleChange = (name: string, value: string) => {
     setFormData((prev) => ({ ...prev, [name]: value }))
+    if (formErrors[name] || formErrors.room_no_and_block_name || formErrors.bus_number) {
+      setFormErrors((prev) => {
+        const next = { ...prev }
+        delete next[name]
+        if (name === 'room_no_and_block_name' || name === 'bus_number') {
+          delete next.room_no_and_block_name
+          delete next.bus_number
+        }
+        return next
+      })
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent, values: Record<string, string>) => {
     e.preventDefault()
     setAlert(null)
+    setFormErrors({})
 
     if (!canCreateGrievance) {
       setAlert({
@@ -218,6 +235,16 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
       problem_description: values.problem_description || formData.problem_description,
       type_of_grievance: values.type_of_grievance || formData.type_of_grievance,
       status: values.status || formData.status || 'Not Yet Started',
+    }
+
+    const validation = validateGrievanceForm(finalData)
+    if (!validation.isValid) {
+      setFormErrors(validation.errors)
+      setAlert({
+        type: 'error',
+        message: validation.errorMessage || 'Please fill in all required fields, including either Room & Block or Bus Route.',
+      })
+      return
     }
 
     try {
@@ -288,6 +315,7 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
       variant={variant}
       fields={fields}
       values={formData as unknown as Record<string, string>}
+      errors={formErrors}
       onChange={handleChange}
       onSubmit={handleSubmit}
       onCancel={onCancel}
