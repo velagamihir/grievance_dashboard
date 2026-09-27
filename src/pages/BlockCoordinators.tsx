@@ -14,6 +14,8 @@ import {
   RefreshCw,
   Plus,
   X,
+  Pencil,
+  Trash2,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -32,7 +34,14 @@ export const BlockCoordinators = ({
 }: BlockCoordinatorsProps) => {
   useDocumentTitle('Block Coordinators | Grievance Portal')
   const { user, signOutUser } = useAuth()
-  const { canViewCoordinators, canManageCoordinators, loading: permissionsLoading } = usePermissions()
+  const {
+    canViewCoordinators,
+    canManageCoordinators,
+    canAddCoordinator,
+    canEditCoordinator,
+    canDeleteCoordinator,
+    loading: permissionsLoading,
+  } = usePermissions()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [coordinators, setCoordinators] = useState<BlockCoordinatorRow[]>([])
@@ -48,6 +57,23 @@ export const BlockCoordinators = ({
     phone_no: '',
   })
   const [formError, setFormError] = useState<string | null>(null)
+
+  // Edit coordinator modal state
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editFormError, setEditFormError] = useState<string | null>(null)
+  const [editingTarget, setEditingTarget] = useState<BlockCoordinatorRow | null>(null)
+  const [editForm, setEditForm] = useState({
+    name: '',
+    block: '',
+    phone_no: '',
+  })
+
+  // Delete coordinator modal state
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [deletingTarget, setDeletingTarget] = useState<BlockCoordinatorRow | null>(null)
 
   const fetchData = async () => {
     if (!canViewCoordinators) {
@@ -65,17 +91,20 @@ export const BlockCoordinators = ({
       ])
 
       if (coordRes.error) {
+        console.error('Error fetching coordinators:', coordRes.error)
         setCoordinators([])
       } else {
         setCoordinators(coordRes.data || [])
       }
 
       if (grvRes.error) {
+        console.error('Error fetching grievances:', grvRes.error)
         setGrievances([])
       } else {
         setGrievances(grvRes.data || [])
       }
-    } catch {
+    } catch (err) {
+      console.error('Error in fetchData:', err)
       setCoordinators([])
       setGrievances([])
     } finally {
@@ -97,7 +126,7 @@ export const BlockCoordinators = ({
 
   const handleAddCoordinator = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!canManageCoordinators) {
+    if (!canManageCoordinators && !canAddCoordinator) {
       setFormError('Permission Denied: You do not have permission to manage coordinators.')
       return
     }
@@ -139,6 +168,103 @@ export const BlockCoordinators = ({
     }
   }
 
+  const handleOpenEdit = (c: BlockCoordinatorRow) => {
+    setEditingTarget(c)
+    setEditForm({
+      name: c.name || '',
+      block: c.block || '',
+      phone_no: c.phone_no || '',
+    })
+    setEditFormError(null)
+    setIsEditModalOpen(true)
+  }
+
+  const handleEditCoordinator = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!canManageCoordinators && !canEditCoordinator) {
+      setEditFormError('Permission Denied: You do not have permission to edit coordinators.')
+      return
+    }
+    if (!editForm.name.trim() || !editForm.block.trim()) {
+      setEditFormError('Name and Block are required.')
+      return
+    }
+
+    try {
+      setIsEditing(true)
+      setEditFormError(null)
+
+      let query = supabase.from('block_coordinators').update({
+        name: editForm.name.trim(),
+        block: editForm.block.trim(),
+        phone_no: editForm.phone_no.trim() || null,
+      })
+
+      if (editingTarget?.name) {
+        query = query.eq('name', editingTarget.name)
+      }
+      if (editingTarget?.block) {
+        query = query.eq('block', editingTarget.block)
+      }
+
+      const { error } = await query
+
+      if (error) {
+        setEditFormError(error.message)
+      } else {
+        await fetchData()
+        setIsEditModalOpen(false)
+        setEditingTarget(null)
+      }
+    } catch (err: any) {
+      setEditFormError(err?.message || 'Failed to update coordinator')
+    } finally {
+      setIsEditing(false)
+    }
+  }
+
+  const handleOpenDelete = (c: BlockCoordinatorRow) => {
+    setDeletingTarget(c)
+    setDeleteError(null)
+    setIsDeleteModalOpen(true)
+  }
+
+  const handleDeleteCoordinator = async () => {
+    if (!canManageCoordinators && !canDeleteCoordinator) {
+      setDeleteError('Permission Denied: You do not have permission to delete coordinators.')
+      return
+    }
+    if (!deletingTarget) return
+
+    try {
+      setIsDeleting(true)
+      setDeleteError(null)
+
+      let query = supabase.from('block_coordinators').delete()
+
+      if (deletingTarget.name) {
+        query = query.eq('name', deletingTarget.name)
+      }
+      if (deletingTarget.block) {
+        query = query.eq('block', deletingTarget.block)
+      }
+
+      const { error } = await query
+
+      if (error) {
+        setDeleteError(error.message)
+      } else {
+        await fetchData()
+        setIsDeleteModalOpen(false)
+        setDeletingTarget(null)
+      }
+    } catch (err: any) {
+      setDeleteError(err?.message || 'Failed to delete coordinator')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   // Dynamic calculations from live DB data
   const totalCoordinators = coordinators.length
   const uniqueBlocksCount = new Set(
@@ -165,7 +291,7 @@ export const BlockCoordinators = ({
       count: uniqueBlocksCount.toString(),
       change: 'Active administrative zones',
       icon: MapPin,
-      color: 'bg-green-500/15 text-green-600 dark:bg-green-500/25 dark:text-green-400',
+      color: 'bg-green-500/15 text-green-600 dark:bg-green-400',
     },
     {
       title: 'Active Block Cases',
@@ -208,7 +334,10 @@ export const BlockCoordinators = ({
     return { active, resolved }
   }
 
-  const canManage = canManageCoordinators
+  const canAdd = canManageCoordinators || canAddCoordinator
+  const canEdit = canManageCoordinators || canEditCoordinator
+  const canDelete = canManageCoordinators || canDeleteCoordinator
+  const hasActionColumn = canEdit || canDelete
 
   return (
     <div className="min-h-screen bg-offwhite dark:bg-[#151726] text-darkblue dark:text-offwhite transition-colors duration-200">
@@ -301,21 +430,17 @@ export const BlockCoordinators = ({
             return (
               <div
                 key={item.title}
-                className="bg-white dark:bg-[#20243a] p-6 rounded-3xl border border-gray/20 shadow-sm hover:shadow-md transition-shadow space-y-3"
+                className="bg-white dark:bg-[#20243a] rounded-2xl p-5 border border-gray/20 shadow-xs flex items-center justify-between transition-all duration-200 hover:shadow-md"
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-gray uppercase tracking-wider">
-                    {item.title}
-                  </span>
-                  <div className={`p-2.5 rounded-2xl ${item.color}`}>
-                    <Icon className="w-5 h-5" />
-                  </div>
-                </div>
                 <div>
-                  <div className="text-3xl font-bold text-darkblue dark:text-offwhite">
-                    {loading ? '...' : item.count}
-                  </div>
-                  <p className="text-xs text-gray mt-1">{item.change}</p>
+                  <p className="text-xs font-medium text-gray">{item.title}</p>
+                  <p className="text-2xl font-black mt-1 text-darkblue dark:text-offwhite">
+                    {item.count}
+                  </p>
+                  <p className="text-[11px] text-gray mt-1">{item.change}</p>
+                </div>
+                <div className={`p-3.5 rounded-2xl ${item.color}`}>
+                  <Icon className="w-5 h-5" />
                 </div>
               </div>
             )
@@ -357,7 +482,7 @@ export const BlockCoordinators = ({
                 Refresh
               </Button>
 
-              {canManage && (
+              {canAdd && (
                 <Button
                   variant="primary"
                   size="sm"
@@ -379,25 +504,26 @@ export const BlockCoordinators = ({
                   <th className="pb-3">Block &amp; Jurisdiction</th>
                   <th className="pb-3">Phone Number</th>
                   <th className="pb-3">Active Cases</th>
-                  <th className="pb-3 pr-2">Resolved Cases</th>
+                  <th className="pb-3">Resolved Cases</th>
+                  {hasActionColumn && <th className="pb-3 pr-2 text-right">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray/15">
                 {loading || permissionsLoading ? (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-gray text-xs">
+                    <td colSpan={hasActionColumn ? 6 : 5} className="py-8 text-center text-gray text-xs">
                       Loading coordinators from database...
                     </td>
                   </tr>
                 ) : !canViewCoordinators ? (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-gray text-xs">
+                    <td colSpan={hasActionColumn ? 6 : 5} className="py-8 text-center text-gray text-xs">
                       Access Restricted: You do not have permission to view block coordinators.
                     </td>
                   </tr>
                 ) : filteredCoordinators.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-gray text-xs">
+                    <td colSpan={hasActionColumn ? 6 : 5} className="py-8 text-center text-gray text-xs">
                       No block coordinators found in database.
                     </td>
                   </tr>
@@ -451,9 +577,38 @@ export const BlockCoordinators = ({
                           </span>
                         </td>
 
-                        <td className="py-4 pr-2 font-semibold text-green-600 dark:text-green-400 text-xs">
+                        <td className="py-4 font-semibold text-green-600 dark:text-green-400 text-xs">
                           {blockCases.resolved} Resolved
                         </td>
+
+                        {hasActionColumn && (
+                          <td className="py-4 pr-2 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {canEdit && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEdit(c)}
+                                  className="p-1.5 rounded-lg text-gray hover:text-lightblue hover:bg-lightblue/10 transition-colors"
+                                  title="Edit Coordinator"
+                                  aria-label={`Edit ${c.name}`}
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </button>
+                              )}
+                              {canDelete && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenDelete(c)}
+                                  className="p-1.5 rounded-lg text-gray hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                                  title="Delete Coordinator"
+                                  aria-label={`Delete ${c.name}`}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        )}
                       </tr>
                     )
                   })
@@ -543,6 +698,153 @@ export const BlockCoordinators = ({
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Coordinator Modal */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="bg-white dark:bg-[#1a1d2e] rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray/20 space-y-5 animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-gray/15">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-lightblue/15 text-lightblue">
+                  <Pencil className="w-5 h-5" />
+                </div>
+                <h3 className="font-bold text-lg text-darkblue dark:text-offwhite">
+                  Edit Block Coordinator
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEditModalOpen(false)
+                  setEditingTarget(null)
+                }}
+                className="p-1.5 rounded-lg text-gray hover:text-darkblue dark:hover:text-offwhite hover:bg-gray/10 dark:hover:bg-gray/20"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {editFormError && (
+              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-600 dark:text-red-400">
+                {editFormError}
+              </div>
+            )}
+
+            <form onSubmit={handleEditCoordinator} className="space-y-4">
+              <TextInput
+                label="Full Name"
+                placeholder="e.g. Ramesh Kumar"
+                required
+                value={editForm.name}
+                onChange={(e) =>
+                  setEditForm((prev) => ({ ...prev, name: e.target.value }))
+                }
+              />
+
+              <TextInput
+                label="Block / Ward Name"
+                placeholder="e.g. North Block, Block A, Room 101-120"
+                required
+                value={editForm.block}
+                onChange={(e) =>
+                  setEditForm((prev) => ({ ...prev, block: e.target.value }))
+                }
+              />
+
+              <TextInput
+                label="Phone Number"
+                placeholder="e.g. +91 98765 43210"
+                type="tel"
+                value={editForm.phone_no}
+                onChange={(e) =>
+                  setEditForm((prev) => ({ ...prev, phone_no: e.target.value }))
+                }
+              />
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray/15">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setIsEditModalOpen(false)
+                    setEditingTarget(null)
+                  }}
+                  disabled={isEditing}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="sm"
+                  isLoading={isEditing}
+                >
+                  Update Coordinator
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Coordinator Confirmation Modal */}
+      {isDeleteModalOpen && deletingTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="bg-white dark:bg-[#1a1d2e] rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-gray/20 space-y-5 animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center gap-3 text-red-500">
+              <div className="p-2.5 rounded-2xl bg-red-500/15">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-darkblue dark:text-offwhite">
+                  Delete Coordinator
+                </h3>
+                <p className="text-xs text-gray">This action cannot be undone.</p>
+              </div>
+            </div>
+
+            {deleteError && (
+              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-600 dark:text-red-400">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="p-3.5 rounded-2xl bg-offwhite dark:bg-[#151726] border border-gray/20 text-xs space-y-1">
+              <p className="font-semibold text-darkblue dark:text-offwhite">
+                {deletingTarget.name || 'Unnamed Coordinator'}
+              </p>
+              <p className="text-gray">{deletingTarget.block || 'Unassigned Block'}</p>
+              {deletingTarget.phone_no && <p className="text-gray">{deletingTarget.phone_no}</p>}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setIsDeleteModalOpen(false)
+                  setDeletingTarget(null)
+                }}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                className="bg-red-600 hover:bg-red-700 text-white border-transparent"
+                onClick={handleDeleteCoordinator}
+                isLoading={isDeleting}
+              >
+                Confirm Delete
+              </Button>
+            </div>
           </div>
         </div>
       )}

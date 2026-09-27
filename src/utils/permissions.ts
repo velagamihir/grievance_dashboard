@@ -175,6 +175,15 @@ export const checkCanDeleteGrievance = (
 }
 
 /**
+ * Helper to check if a role is super_admin.
+ */
+export const isSuperAdmin = (role?: string | null): boolean => {
+  if (!role) return false
+  const r = normalize(role)
+  return r === 'super_admin' || r === 'superadmin'
+}
+
+/**
  * Helper to check if a role is admin or super_admin.
  */
 export const isAdminOrSuperAdmin = (role?: string | null): boolean => {
@@ -185,13 +194,11 @@ export const isAdminOrSuperAdmin = (role?: string | null): boolean => {
 
 /**
  * Checks if user has permission to create/add block coordinators.
- * Matches: super_admin, admin, or permission 'Add Coordinators' / 'Manage Coordinators' / action='add'|'create'|'insert'|'manage'.
+ * Matches: permission 'Add Coordinators' / 'Manage Coordinators' / action='add'|'create'|'insert'|'manage'.
  */
 export const checkCanCreateCoordinator = (
-  permissions: PermissionRow[] | null | undefined,
-  role?: string | null
+  permissions: PermissionRow[] | null | undefined
 ): boolean => {
-  if (isAdminOrSuperAdmin(role)) return true
   return (
     hasPermission(permissions, 'block_coordinators', 'add') ||
     hasPermission(permissions, 'block_coordinators', 'create') ||
@@ -208,16 +215,13 @@ export const checkCanCreateCoordinator = (
 
 export const checkCanAddCoordinator = checkCanCreateCoordinator
 
-
 /**
  * Checks if user has permission to edit block coordinators.
- * Matches: super_admin, admin, or permission 'Edit Coordinators' / action='edit'|'update'.
+ * Matches: permission 'Edit Coordinators' / action='edit'|'update'.
  */
 export const checkCanEditCoordinator = (
-  permissions: PermissionRow[] | null | undefined,
-  role?: string | null
+  permissions: PermissionRow[] | null | undefined
 ): boolean => {
-  if (isAdminOrSuperAdmin(role)) return true
   return (
     hasPermission(permissions, 'block_coordinators', 'edit') ||
     hasPermission(permissions, 'block_coordinators', 'update') ||
@@ -230,13 +234,11 @@ export const checkCanEditCoordinator = (
 
 /**
  * Checks if user has permission to delete block coordinators.
- * Matches: super_admin, admin, or permission 'Delete Coordinators' / action='delete'|'remove'.
+ * Matches: permission 'Delete Coordinators' / action='delete'|'remove'.
  */
 export const checkCanDeleteCoordinator = (
-  permissions: PermissionRow[] | null | undefined,
-  role?: string | null
+  permissions: PermissionRow[] | null | undefined
 ): boolean => {
-  if (isAdminOrSuperAdmin(role)) return true
   return (
     hasPermission(permissions, 'block_coordinators', 'delete') ||
     hasPermission(permissions, 'block_coordinators', 'remove') ||
@@ -249,13 +251,11 @@ export const checkCanDeleteCoordinator = (
 
 /**
  * Checks if user has permission to manage block coordinators (create, edit, or delete).
- * Matches: super_admin, admin, or permission 'Manage Coordinators' | 'Edit Coordinators' | 'Delete Coordinators'.
+ * Matches: permission 'Manage Coordinators' | 'Edit Coordinators' | 'Delete Coordinators'.
  */
 export const checkCanManageCoordinators = (
-  permissions: PermissionRow[] | null | undefined,
-  role?: string | null
+  permissions: PermissionRow[] | null | undefined
 ): boolean => {
-  if (isAdminOrSuperAdmin(role)) return true
   return (
     hasPermission(permissions, 'block_coordinators', 'add') ||
     hasPermission(permissions, 'block_coordinators', 'create') ||
@@ -274,20 +274,20 @@ export const checkCanManageCoordinators = (
 
 /**
  * Checks if user has permission to view block coordinators.
- * Matches: super_admin, admin, user with 'View Coordinators' permission, or resource="block_coordinators" action="view".
+ * Matches: permission 'View Coordinators' / action='view'|'read'|'select' on resource='block_coordinators' | 'coordinators'.
  */
 export const checkCanViewCoordinators = (
-  permissions: PermissionRow[] | null | undefined,
-  role?: string | null
+  permissions: PermissionRow[] | null | undefined
 ): boolean => {
-  if (isAdminOrSuperAdmin(role)) return true
   return (
     hasPermission(permissions, 'block_coordinators', 'view') ||
+    hasPermission(permissions, 'coordinators', 'view') ||
     hasPermission(permissions, 'block_coordinators', 'read') ||
-    hasPermission(permissions, 'block_coordinators', 'select') ||
+    hasPermission(permissions, 'coordinators', 'read') ||
     hasPermissionName(permissions, 'View Coordinators') ||
     hasPermissionName(permissions, 'View Block Coordinators') ||
-    hasPermissionName(permissions, 'view_coordinators')
+    hasPermissionName(permissions, 'view_coordinators') ||
+    hasPermissionName(permissions, 'view_block_coordinators')
   )
 }
 
