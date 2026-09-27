@@ -37,48 +37,18 @@ import {
 } from '../components/List'
 import { AddGrievanceCard } from '../components/AddGrievanceCard'
 import { InputCard } from '../components/InputCard'
+import {
+  STATUS_OPTIONS,
+  GRIEVANCE_TYPES,
+  initialGrievanceFormData,
+  getStatusBadgeVariant,
+  formatDate,
+} from '../utils'
 import type {
   GrievancePageProps,
   FormResponseRow,
   GrievanceFormData,
-  ListBadgeVariant,
 } from '../types'
-
-// Pre-defined status options with tailored styles
-const STATUS_OPTIONS = [
-  { value: 'Pending', label: 'Pending', variant: 'orange' as ListBadgeVariant },
-  { value: 'Under Review', label: 'Under Review', variant: 'warning' as ListBadgeVariant },
-  { value: 'In Progress', label: 'In Progress', variant: 'lightblue' as ListBadgeVariant },
-  { value: 'Resolved', label: 'Resolved', variant: 'success' as ListBadgeVariant },
-  { value: 'Rejected', label: 'Rejected', variant: 'error' as ListBadgeVariant },
-]
-
-const GRIEVANCE_TYPES = [
-  'Hostel & Accommodation',
-  'Academic & Faculty',
-  'Bus & Transportation',
-  'Infrastructure & Classroom',
-  'Sanitation & Cleanliness',
-  'Water & Electricity',
-  'Canteen & Mess',
-  'Other',
-]
-
-const initialFormData: GrievanceFormData = {
-  name: '',
-  email: '',
-  type_of_grievance: 'Hostel & Accommodation',
-  problem_description: '',
-  branch: 'Computer Science',
-  section: 'A',
-  year: '3rd Year',
-  room_no_and_block_name: '',
-  bus_route: '',
-  bus_number: '',
-  suggestions: '',
-  status: 'Pending',
-  source: 'Web Portal',
-}
 
 export const GrievancePage: React.FC<GrievancePageProps> = ({
   isDark,
@@ -106,7 +76,7 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [selectedGrievance, setSelectedGrievance] = useState<FormResponseRow | null>(null)
-  const [formData, setFormData] = useState<GrievanceFormData>(initialFormData)
+  const [formData, setFormData] = useState<GrievanceFormData>(initialGrievanceFormData)
   const [submitting, setSubmitting] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
@@ -174,11 +144,6 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
     fetchGrievances()
   }, [])
 
-
-  useEffect(() => {
-    fetchGrievances()
-  }, [])
-
   // 1. Inline Status Dropdown Change
   const handleStatusChange = async (grievanceId: number, newStatus: string) => {
     if (!canEditStatus) {
@@ -242,7 +207,7 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
       bus_number: item.bus_number || '',
       suggestions: item.suggestions || '',
       status: item.status || 'Pending',
-      source: item.source || 'Web Portal',
+      source: item.source || 'Form',
     })
     setIsEditModalOpen(true)
   }
@@ -342,29 +307,17 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
   // Statistics calculation
   const stats = useMemo(() => {
     const total = grievances.length
-    const pending = grievances.filter((g) => g.status === 'Pending').length
-    const inProgress = grievances.filter((g) => g.status === 'In Progress' || g.status === 'Under Review').length
-    const resolved = grievances.filter((g) => g.status === 'Resolved').length
+    const notYetStarted = grievances.filter((g) => {
+      const s = (g.status || '').toLowerCase()
+      return s === 'not yet started' || s === 'pending'
+    }).length
+    const inProgress = grievances.filter((g) => (g.status || '').toLowerCase() === 'in progress').length
+    const issueMailSent = grievances.filter((g) => (g.status || '').toLowerCase() === 'issue mail sent').length
+    const finalMailSent = grievances.filter((g) => (g.status || '').toLowerCase() === 'final mail sent').length
+    const resolved = grievances.filter((g) => (g.status || '').toLowerCase() === 'resolved').length
 
-    return { total, pending, inProgress, resolved }
+    return { total, notYetStarted, inProgress, issueMailSent, finalMailSent, resolved }
   }, [grievances])
-
-  // Get status badge variant
-  const getStatusBadgeVariant = (st?: string | null): ListBadgeVariant => {
-    switch (st) {
-      case 'Resolved':
-        return 'success'
-      case 'In Progress':
-        return 'lightblue'
-      case 'Under Review':
-        return 'warning'
-      case 'Rejected':
-        return 'error'
-      case 'Pending':
-      default:
-        return 'orange'
-    }
-  }
 
   return (
     <div className="min-h-screen bg-offwhite dark:bg-[#151726] text-darkblue dark:text-offwhite transition-colors duration-200">
@@ -379,13 +332,12 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
       {/* Floating Toast Notification */}
       {toast && (
         <div
-          className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl shadow-xl text-xs font-semibold backdrop-blur-md transition-all duration-300 animate-in fade-in slide-in-from-bottom-3 ${
-            toast.type === 'success'
-              ? 'bg-green-600 text-white shadow-green-600/20'
-              : toast.type === 'error'
+          className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl shadow-xl text-xs font-semibold backdrop-blur-md transition-all duration-300 animate-in fade-in slide-in-from-bottom-3 ${toast.type === 'success'
+            ? 'bg-green-600 text-white shadow-green-600/20'
+            : toast.type === 'error'
               ? 'bg-red-600 text-white shadow-red-600/20'
               : 'bg-darkblue text-white shadow-darkblue/20 dark:bg-orange dark:text-darkblue'
-          }`}
+            }`}
         >
           {toast.type === 'success' ? (
             <CheckCircle2 className="w-4 h-4 shrink-0" />
@@ -504,10 +456,10 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
           <div className="bg-white dark:bg-[#20243a] p-5 rounded-3xl border border-gray/20 shadow-xs flex items-center justify-between">
             <div>
               <span className="text-xs font-semibold text-gray uppercase tracking-wider">
-                Pending Review
+                Not Yet Started
               </span>
               <div className="text-3xl font-bold text-orange mt-1">
-                {stats.pending}
+                {stats.notYetStarted}
               </div>
             </div>
             <div className="p-3 rounded-2xl bg-orange/15 text-orange dark:bg-orange/25">
@@ -560,16 +512,17 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
             searchKeys={['name', 'problem_description', 'email', 'type_of_grievance', 'room_no_and_block_name', 'bus_route']}
             filterOptions={[
               { label: 'All', value: 'All', count: stats.total },
-              { label: 'Pending', value: 'Pending', count: stats.pending },
-              { label: 'In Progress', value: 'In Progress', count: stats.inProgress },
+              { label: 'Not Yet Started', value: 'Not Yet Started', count: stats.notYetStarted },
+              { label: 'In Progress', value: 'In progress', count: stats.inProgress },
+              { label: 'Issue Mail Sent', value: 'Issue mail sent', count: stats.issueMailSent },
+              { label: 'Final Mail Sent', value: 'Final mail sent', count: stats.finalMailSent },
               { label: 'Resolved', value: 'Resolved', count: stats.resolved },
             ]}
             selectedFilter={statusFilter}
             onFilterSelect={setStatusFilter}
             filterFn={(item, filter) => {
               if (filter === 'All') return true
-              if (filter === 'In Progress') return item.status === 'In Progress' || item.status === 'Under Review'
-              return item.status === filter
+              return (item.status || '').toLowerCase() === filter.toLowerCase()
             }}
             variant="card"
             pagination
@@ -598,18 +551,20 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
                 </Button>
               </div>
             }
-            emptyTitle="No Grievances Found"
-            emptyDescription="There are no grievances matching your active filter criteria."
+            emptyTitle={
+              grievances.length === 0
+                ? 'No Grievances in Database'
+                : 'No Matching Grievances'
+            }
+            emptyDescription={
+              grievances.length === 0
+                ? 'No grievances have been registered in the database yet. Click below to file a new complaint.'
+                : 'No grievance records match your current search and filter criteria.'
+            }
             emptyActionLabel={canCreateGrievance ? 'File New Grievance' : undefined}
             onEmptyAction={canCreateGrievance ? handleOpenAddModal : undefined}
             renderItem={(item) => {
-              const formattedDate = item.created_at
-                ? new Date(item.created_at).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })
-                : 'Recently'
+              const formattedDate = formatDate(item.created_at, 'Recently')
 
               return (
                 <ListItem
@@ -691,17 +646,16 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
                               ? 'Permission Denied: Only authorized coordinators & admins can change status'
                               : 'Change grievance status'
                           }
-                          className={`appearance-none cursor-pointer text-xs font-semibold py-1.5 pl-3 pr-8 rounded-xl border transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-lightblue/30 disabled:cursor-not-allowed disabled:opacity-60 ${
-                            item.status === 'Resolved'
-                              ? 'bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/30'
-                              : item.status === 'In Progress'
+                          className={`appearance-none cursor-pointer text-xs font-semibold py-1.5 pl-3 pr-8 rounded-xl border transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-lightblue/30 disabled:cursor-not-allowed disabled:opacity-60 ${item.status === 'Resolved'
+                            ? 'bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/30'
+                            : item.status === 'In Progress'
                               ? 'bg-lightblue/15 text-lightblue dark:text-lightblue border-lightblue/30'
                               : item.status === 'Under Review'
-                              ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30'
-                              : item.status === 'Rejected'
-                              ? 'bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/30'
-                              : 'bg-orange/15 text-orange border-orange/30'
-                          }`}
+                                ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30'
+                                : item.status === 'Rejected'
+                                  ? 'bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/30'
+                                  : 'bg-orange/15 text-orange border-orange/30'
+                            }`}
                         >
                           {STATUS_OPTIONS.map((opt) => (
                             <option

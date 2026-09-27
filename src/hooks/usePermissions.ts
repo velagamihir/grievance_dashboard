@@ -14,6 +14,7 @@ export interface UserPermissionsState {
   canEditGrievance: boolean
   canEditStatus: boolean
   canDeleteGrievance: boolean
+  canViewAllGrievances: boolean
   refreshPermissions: () => Promise<void>
 }
 
@@ -35,6 +36,8 @@ export function usePermissions(): UserPermissionsState {
 
     try {
       setLoading(true)
+      console.group('[usePermissions] 🔐 Resolving Database Permissions')
+      console.log('[usePermissions] User:', { uid: user.uid, email: user.email })
 
       // 1. Fetch all records from the `permissions` table
       const { data: allPermsData, error: allPermsErr } = await supabase
@@ -44,6 +47,8 @@ export function usePermissions(): UserPermissionsState {
 
       if (allPermsErr) {
         console.warn('[usePermissions] Error querying permissions table:', allPermsErr.message)
+      } else {
+        console.log('[usePermissions] Permissions table count:', allPermsData?.length ?? 0)
       }
 
       const availablePerms: PermissionRow[] = (allPermsData as PermissionRow[]) || []
@@ -58,12 +63,16 @@ export function usePermissions(): UserPermissionsState {
 
       if (profileErr) {
         console.warn('[usePermissions] Error querying profiles table:', profileErr.message)
+      } else {
+        console.log('[usePermissions] Profile result for uid:', profileData)
       }
 
       const userRole = profileData?.role || null
       setRole(userRole)
 
       if (!userRole) {
+        console.log('[usePermissions] No role assigned in profiles table. Granted permissions: []')
+        console.groupEnd()
         setPermissions([])
         return
       }
@@ -77,6 +86,8 @@ export function usePermissions(): UserPermissionsState {
 
       if (roleErr) {
         console.warn('[usePermissions] Error querying roles table:', roleErr.message)
+      } else {
+        console.log('[usePermissions] Role record matching:', roleData)
       }
 
       if (roleData?.id) {
@@ -100,15 +111,19 @@ export function usePermissions(): UserPermissionsState {
                 return (directQuery as PermissionRow[]) || []
               })()
 
+          console.log('[usePermissions] Resolved active permissions:', matchedPerms.map((p) => p.name))
           setPermissions(matchedPerms)
         } else {
+          console.log('[usePermissions] No entries in role_permissions for role_id:', roleData.id)
           setPermissions([])
         }
       } else {
         setPermissions([])
       }
+      console.groupEnd()
     } catch (err) {
       console.error('[usePermissions] Unexpected error loading permissions:', err)
+      console.groupEnd()
       setPermissions([])
     } finally {
       setLoading(false)
@@ -137,14 +152,27 @@ export function usePermissions(): UserPermissionsState {
     return permissions.some((p) => p.name?.toLowerCase() === name.toLowerCase())
   }
 
-  // Capabilities derived purely from fetched database permissions
+  // Check if current user is an administrator or super_admin
+  const isSuperAdmin = (role || '').toLowerCase() === 'super_admin'
+  const isAdmin = (role || '').toLowerCase() === 'admin'
+  const isOfficer = (role || '').toLowerCase() === 'officer'
+  const isPrivileged = isSuperAdmin || isAdmin
+
+  // Capabilities derived from database permissions and role mapping
   const canCreateGrievance =
+    isPrivileged ||
+    isOfficer ||
+    role === 'user' ||
     hasPermission('grievances', 'create') ||
     hasPermission('grievances', 'insert') ||
     hasPermissionName('create_grievance') ||
-    hasPermissionName('grievances:create')
+    hasPermissionName('grievances:create') ||
+    hasPermissionName('file_grievance') ||
+    !role // Allow authenticated users to file by default
 
   const canEditGrievance =
+    isPrivileged ||
+    isOfficer ||
     hasPermission('grievances', 'update') ||
     hasPermission('grievances', 'edit') ||
     hasPermissionName('edit_grievance') ||
@@ -152,6 +180,8 @@ export function usePermissions(): UserPermissionsState {
     hasPermissionName('grievances:update')
 
   const canEditStatus =
+    isPrivileged ||
+    isOfficer ||
     hasPermission('grievances', 'update_status') ||
     hasPermission('grievances', 'edit_status') ||
     hasPermissionName('edit_status') ||
@@ -159,9 +189,17 @@ export function usePermissions(): UserPermissionsState {
     hasPermissionName('grievances:status')
 
   const canDeleteGrievance =
+    isPrivileged ||
     hasPermission('grievances', 'delete') ||
     hasPermissionName('delete_grievance') ||
     hasPermissionName('grievances:delete')
+
+  const canViewAllGrievances =
+    isPrivileged ||
+    isOfficer ||
+    hasPermission('grievances', 'read') ||
+    hasPermission('grievances', 'view_all') ||
+    hasPermissionName('view_all_grievances')
 
   return {
     role,
@@ -174,6 +212,7 @@ export function usePermissions(): UserPermissionsState {
     canEditGrievance,
     canEditStatus,
     canDeleteGrievance,
+    canViewAllGrievances,
     refreshPermissions: fetchPermissions,
   }
 }

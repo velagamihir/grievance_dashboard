@@ -13,41 +13,13 @@ import {
 import { InputCard } from './InputCard'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { GRIEVANCE_TYPES, initialGrievanceFormData } from '../utils'
 import type {
   AddGrievanceCardProps,
   GrievanceFormData,
   FormResponseRow,
   InputCardField,
 } from '../types'
-
-const GRIEVANCE_TYPES = [
-  'Hostel & Accommodation',
-  'Academic & Faculty',
-  'Bus & Transportation',
-  'Infrastructure & Classroom',
-  'Sanitation & Cleanliness',
-  'Water & Electricity',
-  'Canteen & Mess',
-  'Library & Labs',
-  'Administration & Fees',
-  'Other',
-]
-
-const defaultInitialData: GrievanceFormData = {
-  name: '',
-  email: '',
-  type_of_grievance: 'Hostel & Accommodation',
-  problem_description: '',
-  branch: 'Computer Science',
-  section: 'A',
-  year: '3rd Year',
-  room_no_and_block_name: '',
-  bus_route: '',
-  bus_number: '',
-  suggestions: '',
-  status: 'Pending',
-  source: 'Form',
-}
 
 export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
   initialData,
@@ -67,7 +39,7 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
 
   const [sources, setSources] = useState<string[]>(['Form', 'Web Portal', 'Mobile App', 'Kiosk'])
   const [formData, setFormData] = useState<GrievanceFormData>(() => ({
-    ...defaultInitialData,
+    ...initialGrievanceFormData,
     name: initialData?.name || user?.displayName || user?.email?.split('@')[0] || '',
     email: initialData?.email || user?.email || '',
     ...initialData,

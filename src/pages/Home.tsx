@@ -16,6 +16,7 @@ import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import { Button } from '../components/Buttons'
 import { Drawer } from '../components/Drawer'
+import { formatDate, getStatusBadgeClass } from '../utils'
 import type { HomeProps, DashboardStatItem, FormResponseRow } from '../types'
 
 export const Home = ({
@@ -57,13 +58,13 @@ export const Home = ({
 
   // Dynamic statistics calculated directly from Supabase form_responses
   const totalCount = grievances.length
-  const pendingCount = grievances.filter(
-    (g) => (g.status || '').toLowerCase() === 'pending'
-  ).length
-  const inProgressCount = grievances.filter((g) => {
+  const notStartedCount = grievances.filter((g) => {
     const s = (g.status || '').toLowerCase()
-    return s === 'in progress' || s === 'under review'
+    return s === 'not yet started' || s === 'pending'
   }).length
+  const inProgressCount = grievances.filter(
+    (g) => (g.status || '').toLowerCase() === 'in progress'
+  ).length
   const resolvedCount = grievances.filter(
     (g) => (g.status || '').toLowerCase() === 'resolved'
   ).length
@@ -77,16 +78,16 @@ export const Home = ({
       color: 'bg-lightblue/15 text-lightblue dark:bg-lightblue/25',
     },
     {
-      title: 'Pending Review',
-      count: pendingCount.toString(),
-      change: `${pendingCount} awaiting initial review`,
+      title: 'Not Yet Started',
+      count: notStartedCount.toString(),
+      change: `${notStartedCount} awaiting initial review`,
       icon: Clock,
       color: 'bg-orange/15 text-orange dark:bg-orange/25',
     },
     {
       title: 'In Progress',
       count: inProgressCount.toString(),
-      change: `${inProgressCount} currently being handled`,
+      change: `${inProgressCount} currently active`,
       icon: AlertCircle,
       color: 'bg-darkblue/15 text-darkblue dark:bg-darkblue/40 dark:text-offwhite',
     },
@@ -100,35 +101,6 @@ export const Home = ({
   ]
 
   const recentGrievances = grievances.slice(0, 6)
-
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return 'N/A'
-    try {
-      const d = new Date(dateStr)
-      if (isNaN(d.getTime())) return dateStr
-      return d.toLocaleDateString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      })
-    } catch {
-      return dateStr
-    }
-  }
-
-  const getStatusBadgeClass = (status: string | null) => {
-    const s = (status || '').toLowerCase()
-    if (s === 'resolved') {
-      return 'bg-green-500/15 text-green-600 dark:bg-green-500/25 dark:text-green-400'
-    }
-    if (s === 'in progress' || s === 'under review') {
-      return 'bg-lightblue/15 text-lightblue dark:bg-lightblue/25'
-    }
-    if (s === 'rejected') {
-      return 'bg-red-500/15 text-red-600 dark:bg-red-500/25 dark:text-red-400'
-    }
-    return 'bg-orange/15 text-orange dark:bg-orange/25'
-  }
 
   return (
     <div className="min-h-screen bg-offwhite dark:bg-[#151726] text-darkblue dark:text-offwhite transition-colors duration-200">
