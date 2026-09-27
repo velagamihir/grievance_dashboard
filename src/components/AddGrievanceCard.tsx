@@ -47,6 +47,16 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
     ...initialData,
   }))
 
+  useEffect(() => {
+    if (user) {
+      setFormData((prev) => ({
+        ...prev,
+        name: initialData?.name || prev.name || user.displayName || user.email?.split('@')[0] || '',
+        email: initialData?.email || prev.email || user.email || '',
+      }))
+    }
+  }, [user, initialData])
+
   const [submitting, setSubmitting] = useState(false)
   const [alert, setAlert] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null)
 
@@ -81,18 +91,22 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
     {
       name: 'name',
       label: 'Student / Complainant Name',
-      placeholder: 'e.g. Aarav Sharma',
+      placeholder: 'Auto-filled from account',
       type: 'text',
       required: true,
+      disabled: true,
+      helperText: 'Auto-filled from logged-in user profile (read-only)',
       leftIcon: <User className="w-4 h-4" />,
       colSpan: 1,
     },
     {
       name: 'email',
       label: 'Contact Email Address',
-      placeholder: 'e.g. student@college.edu',
+      placeholder: 'Auto-filled from account',
       type: 'email',
       required: true,
+      disabled: true,
+      helperText: 'Auto-filled from logged-in user profile (read-only)',
       leftIcon: <Mail className="w-4 h-4" />,
       colSpan: 1,
     },
