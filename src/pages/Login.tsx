@@ -74,13 +74,13 @@ export const Login = ({ onSuccess, onForgotPassword }: LoginProps) => {
   }
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 bg-offwhite dark:bg-[#151726] transition-colors duration-200">
-      <div className="w-full max-w-md bg-white dark:bg-[#20243a] rounded-3xl shadow-xl shadow-darkblue/5 dark:shadow-black/30 border border-gray/20 p-8 sm:p-10 space-y-8">
-        <div className="flex flex-col items-center text-center space-y-4">
+    <div className="min-h-screen w-full flex items-center justify-center p-3 sm:p-6 bg-offwhite dark:bg-[#151726] transition-colors duration-200">
+      <div className="w-full max-w-md bg-white dark:bg-[#20243a] rounded-2xl sm:rounded-3xl shadow-xl shadow-darkblue/5 dark:shadow-black/30 border border-gray/20 p-6 sm:p-8 md:p-10 space-y-6 sm:space-y-8">
+        <div className="flex flex-col items-center text-center space-y-3.5 sm:space-y-4">
           <img
             src={logoImg}
             alt="Grievance Council Logo"
-            className="w-16 h-16 rounded-2xl object-contain shadow-md bg-darkblue/5 dark:bg-white/5 p-1"
+            className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-contain shadow-md bg-darkblue/5 dark:bg-white/5 p-1"
           />
 
           <div>

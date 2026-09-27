@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   Plus,
   Trash2,
@@ -43,11 +43,13 @@ import {
   getStatusBadgeVariant,
   formatDate,
   exportGrievancesToExcel,
+  validateLocationRequirement,
 } from '../utils'
 import type {
   GrievancePageProps,
   FormResponseRow,
   GrievanceFormData,
+  SourceRow,
 } from '../types'
 
 export const GrievancePage: React.FC<GrievancePageProps> = ({
@@ -80,9 +82,11 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [selectedGrievance, setSelectedGrievance] = useState<FormResponseRow | null>(null)
   const [formData, setFormData] = useState<GrievanceFormData>(initialGrievanceFormData)
+  const [editError, setEditError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
+  const [typeFilter, setTypeFilter] = useState('All')
 
   // Auto-clear toast
   useEffect(() => {
@@ -99,7 +103,7 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
   const [sources, setSources] = useState<string[]>(['Form', 'Web Portal', 'Mobile App', 'Kiosk'])
 
   // Fetch Sources from Supabase
-  const fetchSources = async () => {
+  const fetchSources = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('sources')
@@ -107,7 +111,7 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
         .order('id', { ascending: true })
 
       if (!error && data && data.length > 0) {
-        const names = data.map((s: any) => s.source_name).filter(Boolean)
+        const names = (data as SourceRow[]).map((s) => s.source_name).filter(Boolean)
         if (names.length > 0) {
           setSources(names)
         }
@@ -115,9 +119,9 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
     } catch (err) {
       console.warn('[GrievancePage] Error fetching sources:', err)
     }
-  }
+  }, [])
 
-  const fetchGrievances = async () => {
+  const fetchGrievances = useCallback(async () => {
     if (!canViewAllGrievances) {
       setGrievances([])
       setLoading(false)
@@ -138,7 +142,7 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
       } else if (data) {
         setGrievances(data as FormResponseRow[])
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[GrievancePage] Unexpected error:', err)
       showToast('Error connecting to database', 'error')
       setGrievances([])
@@ -146,11 +150,11 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
       setLoading(false)
       setRefreshing(false)
     }
-  }
+  }, [canViewAllGrievances])
 
   useEffect(() => {
     fetchSources()
-  }, [])
+  }, [fetchSources])
 
   useEffect(() => {
     if (!permissionsLoading) {
@@ -161,7 +165,7 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
         setLoading(false)
       }
     }
-  }, [permissionsLoading, canViewAllGrievances])
+  }, [permissionsLoading, canViewAllGrievances, fetchGrievances])
 
   // 1. Inline Status Dropdown Change
   const handleStatusChange = async (grievanceId: number, newStatus: string) => {
@@ -213,6 +217,7 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
       return
     }
     setSelectedGrievance(item)
+    setEditError(null)
     setFormData({
       name: item.name || '',
       email: item.email || '',
@@ -235,9 +240,25 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
   const handleUpdateGrievance = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedGrievance) return
+    setEditError(null)
 
     if (!canEditGrievance) {
-      showToast('Permission Denied: You do not have permission to edit grievance details.', 'error')
+      const msg = 'Permission Denied: You do not have permission to edit grievance details.'
+      setEditError(msg)
+      showToast(msg, 'error')
+      return
+    }
+
+    const locationValidation = validateLocationRequirement({
+      room_no_and_block_name: formData.room_no_and_block_name,
+      bus_route: formData.bus_route,
+      bus_number: formData.bus_number,
+    })
+
+    if (!locationValidation.isValid) {
+      const msg = locationValidation.error || 'Either Room No & Block or Bus No / Route is mandatory.'
+      setEditError(msg)
+      showToast(msg, 'error')
       return
     }
 
@@ -323,32 +344,90 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
     }
   }
 
-  // Statistics calculation
+  // Available Grievance Categories (including dynamic DB categories)
+  const availableGrievanceTypes = useMemo(() => {
+    const typesSet = new Set<string>(GRIEVANCE_TYPES)
+    grievances.forEach((g) => {
+      if (g.type_of_grievance) typesSet.add(g.type_of_grievance)
+    })
+    return ['All', ...Array.from(typesSet)]
+  }, [grievances])
+
+  // Filtered by Type for List and Category-specific Stats
+  const filteredByTypeGrievances = useMemo(() => {
+    if (typeFilter === 'All') return grievances
+    return grievances.filter(
+      (g) => (g.type_of_grievance || '').toLowerCase() === typeFilter.toLowerCase()
+    )
+  }, [grievances, typeFilter])
+
+  // Fully filtered grievances (Type + Status + Search) for Export
+  const fullyFilteredGrievances = useMemo(() => {
+    return filteredByTypeGrievances.filter((item) => {
+      // 1. Status filter
+      if (statusFilter !== 'All') {
+        if ((item.status || '').toLowerCase() !== statusFilter.toLowerCase()) {
+          return false
+        }
+      }
+      // 2. Search query filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim()
+        const matches = [
+          item.name,
+          item.problem_description,
+          item.email,
+          item.type_of_grievance,
+          item.room_no_and_block_name,
+          item.bus_route,
+          item.bus_number,
+          item.branch,
+        ].some((val) => val && String(val).toLowerCase().includes(q))
+        if (!matches) return false
+      }
+      return true
+    })
+  }, [filteredByTypeGrievances, statusFilter, searchQuery])
+
+  // Statistics calculation (reactive to selected grievance type)
   const stats = useMemo(() => {
-    const total = grievances.length
-    const notYetStarted = grievances.filter((g) => {
+    const target = filteredByTypeGrievances
+    const total = target.length
+    const notYetStarted = target.filter((g) => {
       const s = (g.status || '').toLowerCase()
       return s === 'not yet started' || s === 'pending'
     }).length
-    const inProgress = grievances.filter((g) => (g.status || '').toLowerCase() === 'in progress').length
-    const issueMailSent = grievances.filter((g) => (g.status || '').toLowerCase() === 'issue mail sent').length
-    const finalMailSent = grievances.filter((g) => (g.status || '').toLowerCase() === 'final mail sent').length
-    const resolved = grievances.filter((g) => (g.status || '').toLowerCase() === 'resolved').length
+    const inProgress = target.filter((g) => (g.status || '').toLowerCase() === 'in progress').length
+    const issueMailSent = target.filter((g) => (g.status || '').toLowerCase() === 'issue mail sent').length
+    const finalMailSent = target.filter((g) => (g.status || '').toLowerCase() === 'final mail sent').length
+    const resolved = target.filter((g) => (g.status || '').toLowerCase() === 'resolved').length
 
     return { total, notYetStarted, inProgress, issueMailSent, finalMailSent, resolved }
-  }, [grievances])
+  }, [filteredByTypeGrievances])
 
-  // Export Grievances to Excel / CSV
+  // Export Grievances to Excel / CSV (Filtered by Type, Status, & Search)
   const handleExportToExcel = () => {
     try {
-      if (grievances.length === 0) {
-        showToast('No grievances available to export.', 'info')
+      const exportData = fullyFilteredGrievances
+      if (exportData.length === 0) {
+        showToast('No grievances matching current filters to export.', 'info')
         return
       }
-      exportGrievancesToExcel(grievances)
-      showToast(`Exported ${grievances.length} grievance(s) to Excel!`, 'success')
-    } catch (err: any) {
-      showToast(err?.message || 'Failed to export grievances.', 'error')
+
+      const typeTag = typeFilter !== 'All' ? `_${typeFilter.replace(/[^a-zA-Z0-9]/g, '_')}` : ''
+      const statusTag = statusFilter !== 'All' ? `_${statusFilter.replace(/[^a-zA-Z0-9]/g, '_')}` : ''
+      const dateTag = new Date().toISOString().slice(0, 10)
+      const filename = `grievances${typeTag}${statusTag}_${dateTag}.csv`
+
+      exportGrievancesToExcel(exportData, filename)
+      showToast(
+        `Exported ${exportData.length} grievance(s)${
+          typeFilter !== 'All' ? ` for "${typeFilter}"` : ''
+        }${statusFilter !== 'All' ? ` [${statusFilter}]` : ''} to Excel!`,
+        'success'
+      )
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : 'Failed to export grievances.', 'error')
     }
   }
 
@@ -365,25 +444,28 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
       {/* Floating Toast Notification */}
       {toast && (
         <div
-          className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl shadow-xl text-xs font-semibold backdrop-blur-md transition-all duration-300 animate-in fade-in slide-in-from-bottom-3 ${toast.type === 'success'
+          className={`fixed bottom-4 right-4 left-4 sm:left-auto sm:bottom-6 sm:right-6 max-w-sm sm:max-w-md z-[9999] flex items-center justify-between gap-3 px-4 py-3 rounded-2xl shadow-2xl text-xs font-semibold backdrop-blur-md transition-all duration-300 animate-in fade-in slide-in-from-bottom-3 ${toast.type === 'success'
             ? 'bg-green-600 text-white shadow-green-600/20'
             : toast.type === 'error'
               ? 'bg-red-600 text-white shadow-red-600/20'
               : 'bg-darkblue text-white shadow-darkblue/20 dark:bg-orange dark:text-darkblue'
             }`}
         >
-          {toast.type === 'success' ? (
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
-          ) : toast.type === 'error' ? (
-            <ShieldAlert className="w-4 h-4 shrink-0" />
-          ) : (
-            <AlertCircle className="w-4 h-4 shrink-0" />
-          )}
-          <span>{toast.message}</span>
+          <div className="flex items-center gap-2.5 min-w-0">
+            {toast.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+            ) : toast.type === 'error' ? (
+              <ShieldAlert className="w-4 h-4 shrink-0" />
+            ) : (
+              <AlertCircle className="w-4 h-4 shrink-0" />
+            )}
+            <span className="truncate">{toast.message}</span>
+          </div>
           <button
             type="button"
             onClick={() => setToast(null)}
-            className="opacity-70 hover:opacity-100 ml-1"
+            className="opacity-70 hover:opacity-100 ml-1 shrink-0 p-1 cursor-pointer"
+            aria-label="Close toast"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -403,93 +485,97 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
       />
 
       {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-6 sm:space-y-8">
         {/* Banner Section */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-darkblue via-[#404a8b] to-lightblue p-6 sm:p-8 text-offwhite shadow-xl shadow-darkblue/10">
+        <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-darkblue via-[#404a8b] to-lightblue p-5 sm:p-8 text-offwhite shadow-xl shadow-darkblue/10">
           <div className="relative z-10 max-w-2xl space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 text-xs font-semibold backdrop-blur-xs">
               <Sparkles className="w-3.5 h-3.5 text-orange" />
               Role-Based Grievance Operations
             </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight">
               Grievance Records &amp; Actions
             </h2>
-            <p className="text-sm sm:text-base text-offwhite/85">
+            <p className="text-xs sm:text-sm md:text-base text-offwhite/85">
               Review filed grievances, update incident progress in real-time, edit grievance details, and submit new complaints.
             </p>
           </div>
 
-          <div className="absolute right-0 bottom-0 opacity-10 pointer-events-none transform translate-x-8 translate-y-8">
+          <div className="hidden sm:block absolute right-0 bottom-0 opacity-10 pointer-events-none transform translate-x-8 translate-y-8">
             <Layers className="w-64 h-64 text-white" />
           </div>
         </div>
 
         {/* Stats Summary Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          <div className="bg-white dark:bg-[#20243a] p-5 rounded-3xl border border-gray/20 shadow-xs flex items-center justify-between">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-5">
+          <div className="bg-white dark:bg-[#20243a] p-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-gray/20 shadow-xs flex items-center justify-between">
             <div>
               <span className="text-xs font-semibold text-gray uppercase tracking-wider">
                 Total Grievances
               </span>
-              <div className="text-3xl font-bold text-darkblue dark:text-offwhite mt-1">
+              <div className="text-2xl sm:text-3xl font-bold text-darkblue dark:text-offwhite mt-1">
                 {stats.total}
               </div>
             </div>
             <div className="p-3 rounded-2xl bg-lightblue/15 text-lightblue dark:bg-lightblue/25">
-              <Layers className="w-6 h-6" />
+              <Layers className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
           </div>
 
-          <div className="bg-white dark:bg-[#20243a] p-5 rounded-3xl border border-gray/20 shadow-xs flex items-center justify-between">
+          <div className="bg-white dark:bg-[#20243a] p-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-gray/20 shadow-xs flex items-center justify-between">
             <div>
               <span className="text-xs font-semibold text-gray uppercase tracking-wider">
                 Not Yet Started
               </span>
-              <div className="text-3xl font-bold text-orange mt-1">
+              <div className="text-2xl sm:text-3xl font-bold text-orange mt-1">
                 {stats.notYetStarted}
               </div>
             </div>
             <div className="p-3 rounded-2xl bg-orange/15 text-orange dark:bg-orange/25">
-              <Clock className="w-6 h-6" />
+              <Clock className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
           </div>
 
-          <div className="bg-white dark:bg-[#20243a] p-5 rounded-3xl border border-gray/20 shadow-xs flex items-center justify-between">
+          <div className="bg-white dark:bg-[#20243a] p-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-gray/20 shadow-xs flex items-center justify-between">
             <div>
               <span className="text-xs font-semibold text-gray uppercase tracking-wider">
                 In Progress
               </span>
-              <div className="text-3xl font-bold text-darkblue dark:text-offwhite mt-1">
+              <div className="text-2xl sm:text-3xl font-bold text-darkblue dark:text-offwhite mt-1">
                 {stats.inProgress}
               </div>
             </div>
             <div className="p-3 rounded-2xl bg-darkblue/15 text-darkblue dark:bg-darkblue/40 dark:text-offwhite">
-              <AlertCircle className="w-6 h-6" />
+              <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
           </div>
 
-          <div className="bg-white dark:bg-[#20243a] p-5 rounded-3xl border border-gray/20 shadow-xs flex items-center justify-between">
+          <div className="bg-white dark:bg-[#20243a] p-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-gray/20 shadow-xs flex items-center justify-between">
             <div>
               <span className="text-xs font-semibold text-gray uppercase tracking-wider">
                 Resolved
               </span>
-              <div className="text-3xl font-bold text-green-600 dark:text-green-400 mt-1">
+              <div className="text-2xl sm:text-3xl font-bold text-green-600 dark:text-green-400 mt-1">
                 {stats.resolved}
               </div>
             </div>
             <div className="p-3 rounded-2xl bg-green-500/15 text-green-600 dark:bg-green-500/25 dark:text-green-400">
-              <CheckCircle2 className="w-6 h-6" />
+              <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
           </div>
         </div>
 
         {/* Grievance Management Section using Reusable List */}
-        <div className="bg-white dark:bg-[#20243a] rounded-3xl border border-gray/20 shadow-sm p-6 sm:p-8 space-y-6">
+        <div className="bg-white dark:bg-[#20243a] rounded-2xl sm:rounded-3xl border border-gray/20 shadow-sm p-4 sm:p-6 md:p-8 space-y-6">
           <List<FormResponseRow>
             title="Registered Complaints"
-            subtitle="View, triage, and modify incident records"
-            count={grievances.length}
-            items={grievances}
+            subtitle={
+              typeFilter === 'All'
+                ? 'View, triage, and modify incident records'
+                : `Filtered by category: ${typeFilter} (${filteredByTypeGrievances.length} records)`
+            }
+            count={filteredByTypeGrievances.length}
+            items={filteredByTypeGrievances}
             isLoading={loading || permissionsLoading}
             keyExtractor={(item) => item.id}
             searchable
@@ -501,8 +587,8 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
               { label: 'All', value: 'All', count: stats.total },
               { label: 'Not Yet Started', value: 'Not Yet Started', count: stats.notYetStarted },
               { label: 'In Progress', value: 'In progress', count: stats.inProgress },
-              { label: 'Issue Mail Sent', value: 'Issue mail sent', count: stats.issueMailSent },
-              { label: 'Final Mail Sent', value: 'Final mail sent', count: stats.finalMailSent },
+              { label: 'Issue Mail to be Sent', value: 'Issue mail to be sent', count: stats.issueMailSent },
+              { label: 'Final Mail to be Sent', value: 'Final mail to be sent', count: stats.finalMailSent },
               { label: 'Resolved', value: 'Resolved', count: stats.resolved },
             ]}
             selectedFilter={statusFilter}
@@ -515,16 +601,54 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
             pagination
             pageSize={6}
             headerActions={
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap justify-end">
+                {/* Type of Grievance Dropdown Filter */}
+                <div className="relative flex items-center min-w-[150px] sm:min-w-[185px]">
+                  <div className="absolute left-2.5 pointer-events-none text-lightblue dark:text-orange">
+                    <Layers className="w-3.5 h-3.5" />
+                  </div>
+                  <select
+                    value={typeFilter}
+                    onChange={(e) => setTypeFilter(e.target.value)}
+                    className="w-full appearance-none bg-offwhite dark:bg-[#151726] border border-gray/20 hover:border-lightblue/40 dark:hover:border-lightblue/40 rounded-xl pl-8 pr-7 py-1.5 text-xs font-semibold text-darkblue dark:text-offwhite focus:outline-none focus:ring-2 focus:ring-lightblue/25 cursor-pointer transition-all shadow-xs"
+                    title="Filter by Type of Grievance"
+                    aria-label="Filter by Type of Grievance"
+                  >
+                    <option value="All">All Categories ({grievances.length})</option>
+                    {availableGrievanceTypes
+                      .filter((t) => t !== 'All')
+                      .map((type) => {
+                        const count = grievances.filter(
+                          (g) => (g.type_of_grievance || '').toLowerCase() === type.toLowerCase()
+                        ).length
+                        return (
+                          <option
+                            key={type}
+                            value={type}
+                            className="bg-white dark:bg-[#1a1d2e] text-darkblue dark:text-offwhite font-normal"
+                          >
+                            {type} ({count})
+                          </option>
+                        )
+                      })}
+                  </select>
+                  <span className="pointer-events-none absolute right-2.5 text-xs text-gray opacity-60">▾</span>
+                </div>
+
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleExportToExcel}
-                  disabled={!canViewAllGrievances || grievances.length === 0}
+                  disabled={!canViewAllGrievances || fullyFilteredGrievances.length === 0}
                   leftIcon={<Download className="w-4 h-4" />}
-                  title="Export grievances to Excel / CSV"
+                  title={
+                    typeFilter !== 'All' || statusFilter !== 'All'
+                      ? `Export ${fullyFilteredGrievances.length} filtered grievance(s) to Excel`
+                      : 'Export all grievances to Excel'
+                  }
                 >
                   <span className="hidden sm:inline">Export Excel</span>
+                  <span className="sm:hidden">Export</span>
                 </Button>
 
                 <Button
@@ -545,7 +669,8 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
                     onClick={handleOpenAddModal}
                     leftIcon={<Plus className="w-4 h-4" />}
                   >
-                    Add Grievance
+                    <span className="hidden xs:inline">Add Grievance</span>
+                    <span className="xs:hidden">Add</span>
                   </Button>
                 )}
               </div>
@@ -554,15 +679,15 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
               !canViewAllGrievances
                 ? 'Access Restricted'
                 : grievances.length === 0
-                ? 'No Grievances in Database'
-                : 'No Matching Grievances'
+                  ? 'No Grievances in Database'
+                  : 'No Matching Grievances'
             }
             emptyDescription={
               !canViewAllGrievances
                 ? 'You do not have permission to view grievances. Please contact your administrator to assign role permissions.'
                 : grievances.length === 0
-                ? 'No grievances have been registered in the database yet.'
-                : 'No grievance records match your current search and filter criteria.'
+                  ? 'No grievances have been registered in the database yet.'
+                  : 'No grievance records match your current search and filter criteria.'
             }
             emptyActionLabel={canCreateGrievance ? 'File New Grievance' : undefined}
             onEmptyAction={canCreateGrievance ? handleOpenAddModal : undefined}
@@ -755,7 +880,11 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
             variant="embedded"
             submitButtonText="Save Changes"
             isLoading={submitting}
-            onCancel={() => setIsEditModalOpen(false)}
+            alert={editError ? { type: 'error', message: editError } : null}
+            onCancel={() => {
+              setIsEditModalOpen(false)
+              setEditError(null)
+            }}
             onSubmit={handleUpdateGrievance}
             fields={[
               {
@@ -829,6 +958,8 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
               {
                 name: 'room_no_and_block_name',
                 label: 'Room No & Block',
+                placeholder: 'e.g. Room 304, Block B',
+                helperText: 'Mandatory if Bus No / Route is not specified',
                 type: 'text',
                 leftIcon: <Building className="w-4 h-4" />,
                 colSpan: 1,
@@ -836,6 +967,8 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
               {
                 name: 'bus_number',
                 label: 'Bus No / Route',
+                placeholder: 'e.g. Route 14 / KA-01-F-4421',
+                helperText: 'Mandatory if Room & Block is not specified',
                 type: 'text',
                 leftIcon: <Bus className="w-4 h-4" />,
                 colSpan: 1,
@@ -849,7 +982,10 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
               },
             ]}
             values={formData as unknown as Record<string, string>}
-            onChange={(name, value) => setFormData((prev) => ({ ...prev, [name]: value }))}
+            onChange={(name, value) => {
+              setFormData((prev) => ({ ...prev, [name]: value }))
+              if (editError) setEditError(null)
+            }}
           />
         </Modal>
       )}

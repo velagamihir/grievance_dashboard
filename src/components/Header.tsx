@@ -34,26 +34,26 @@ export const Header: React.FC<HeaderProps> = ({
     <header
       className={`sticky top-0 z-30 bg-white/80 dark:bg-[#1a1d2e]/80 backdrop-blur-md border-b border-gray/20 transition-colors duration-200 ${className}`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 sm:gap-4">
         {/* Left Side: Drawer Toggle + Title & Subtitle */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2.5 sm:gap-4 min-w-0 flex-1">
           {showDrawerButton && onOpenDrawer && (
             <button
               type="button"
               onClick={onOpenDrawer}
-              className="p-2 rounded-xl text-darkblue dark:text-offwhite hover:bg-gray/10 dark:hover:bg-gray/20 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-lightblue/50"
+              className="p-2 -ml-1 sm:ml-0 rounded-xl text-darkblue dark:text-offwhite hover:bg-gray/10 dark:hover:bg-gray/20 transition-colors shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-lightblue/50 cursor-pointer"
               aria-label="Open navigation drawer"
             >
-              <Menu className="w-6 h-6" />
+              <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
           )}
 
-          <div>
-            <h1 className="text-lg font-bold text-darkblue dark:text-offwhite leading-none">
+          <div className="min-w-0">
+            <h1 className="text-base sm:text-lg font-bold text-darkblue dark:text-offwhite leading-none truncate">
               {title}
             </h1>
             {subtitle && (
-              <p className="text-xs text-gray mt-0.5 hidden sm:block">
+              <p className="text-[11px] sm:text-xs text-gray mt-0.5 truncate hidden xs:block">
                 {subtitle}
               </p>
             )}
@@ -61,9 +61,9 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Right Side: Role Badge + Extra Actions + Theme Toggle + User Info + Sign Out */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           {role && (
-            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-xl bg-lightblue/10 dark:bg-orange/15 text-xs font-semibold text-lightblue dark:text-orange border border-lightblue/20 dark:border-orange/20">
+            <div className="hidden sm:flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-xl bg-lightblue/10 dark:bg-orange/15 text-xs font-semibold text-lightblue dark:text-orange border border-lightblue/20 dark:border-orange/20">
               <Shield className="w-3.5 h-3.5" />
               <span className="capitalize">{role}</span>
             </div>
@@ -74,9 +74,9 @@ export const Header: React.FC<HeaderProps> = ({
           <ThemeToggle isDark={isDark} onToggleTheme={onToggleTheme} />
 
           {userEmail && (
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-offwhite dark:bg-[#20243a] border border-gray/15 text-xs text-gray">
+            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-offwhite dark:bg-[#20243a] border border-gray/15 text-xs text-gray">
               <UserIcon className="w-3.5 h-3.5 text-lightblue" />
-              <span className="max-w-[150px] truncate font-medium text-darkblue dark:text-offwhite">
+              <span className="max-w-[140px] truncate font-medium text-darkblue dark:text-offwhite">
                 {userEmail}
               </span>
             </div>
@@ -88,8 +88,10 @@ export const Header: React.FC<HeaderProps> = ({
               size="sm"
               onClick={onSignOut}
               leftIcon={<LogOut className="w-4 h-4" />}
+              title="Sign Out"
+              className="px-2.5 sm:px-3.5"
             >
-              Sign Out
+              <span className="hidden sm:inline">Sign Out</span>
             </Button>
           )}
         </div>

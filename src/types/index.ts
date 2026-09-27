@@ -204,7 +204,7 @@ export interface ListHeaderProps {
   className?: string
 }
 
-export interface ListProps<T = any> {
+export interface ListProps<T = Record<string, unknown>> {
   items?: T[]
   renderItem?: (item: T, index: number) => ReactNode
   keyExtractor?: (item: T, index: number) => string | number
@@ -406,6 +406,27 @@ export interface CoordinatorStatItem {
   change: string
   icon: ComponentType<{ className?: string }>
   color: string
+}
+
+// ==========================================
+// Form Validation Types
+// ==========================================
+
+export interface LocationValidationData {
+  room_no_and_block_name?: string | null
+  bus_route?: string | null
+  bus_number?: string | null
+}
+
+export interface LocationValidationResult {
+  isValid: boolean
+  error: string | null
+}
+
+export interface ValidationResult {
+  isValid: boolean
+  errors: Record<string, string>
+  errorMessage: string | null
 }
 
 // ==========================================

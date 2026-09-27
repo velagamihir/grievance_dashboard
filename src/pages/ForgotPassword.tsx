@@ -79,12 +79,12 @@ export const ForgotPassword = ({ initialEmail = '', onBackToLogin, onSuccess }: 
   }
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 bg-offwhite dark:bg-[#151726] transition-colors duration-200">
-      <div className="w-full max-w-md bg-white dark:bg-[#20243a] rounded-3xl shadow-xl shadow-darkblue/5 dark:shadow-black/30 border border-gray/20 p-8 sm:p-10 space-y-8">
+    <div className="min-h-screen w-full flex items-center justify-center p-3 sm:p-6 bg-offwhite dark:bg-[#151726] transition-colors duration-200">
+      <div className="w-full max-w-md bg-white dark:bg-[#20243a] rounded-2xl sm:rounded-3xl shadow-xl shadow-darkblue/5 dark:shadow-black/30 border border-gray/20 p-6 sm:p-8 md:p-10 space-y-6 sm:space-y-8">
         {isSubmitted ? (
-          <div className="text-center space-y-6">
-            <div className="w-16 h-16 rounded-2xl bg-lightblue/15 text-lightblue mx-auto flex items-center justify-center shadow-inner">
-              <CheckCircle2 className="w-9 h-9" />
+          <div className="text-center space-y-5 sm:space-y-6">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-lightblue/15 text-lightblue mx-auto flex items-center justify-center shadow-inner">
+              <CheckCircle2 className="w-8 h-8 sm:w-9 sm:h-9" />
             </div>
 
             <div className="space-y-2">

@@ -21,10 +21,10 @@ export type {
 }
 
 const variantStyles: Record<InputCardVariant, string> = {
-  card: 'bg-white dark:bg-[#20243a] rounded-3xl border border-gray/20 shadow-sm p-6 sm:p-8 space-y-6',
-  bordered: 'bg-white dark:bg-[#20243a] rounded-2xl border border-gray/20 p-5 sm:p-6 space-y-5',
-  embedded: 'bg-white dark:bg-[#1a1d2e] rounded-2xl space-y-6 p-4 sm:p-6',
-  flat: 'space-y-6',
+  card: 'bg-white dark:bg-[#20243a] rounded-2xl sm:rounded-3xl border border-gray/20 shadow-sm p-4 sm:p-6 md:p-8 space-y-5 sm:space-y-6',
+  bordered: 'bg-white dark:bg-[#20243a] rounded-xl sm:rounded-2xl border border-gray/20 p-4 sm:p-6 space-y-4 sm:space-y-5',
+  embedded: 'bg-white dark:bg-[#1a1d2e] rounded-xl sm:rounded-2xl space-y-5 p-3.5 sm:p-6',
+  flat: 'space-y-5 sm:space-y-6',
 }
 
 const colSpanClasses: Record<string, string> = {
@@ -315,6 +315,7 @@ export const InputCard: React.FC<InputCardProps> = ({
               onClick={handleReset}
               disabled={disabled || isLoading}
               leftIcon={<RotateCcw className="w-4 h-4" />}
+              className="w-full sm:w-auto"
             >
               {resetButtonText}
             </Button>
@@ -322,7 +323,7 @@ export const InputCard: React.FC<InputCardProps> = ({
             <div />
           )}
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
             {actions ? (
               actions
             ) : (
@@ -334,6 +335,7 @@ export const InputCard: React.FC<InputCardProps> = ({
                     type="button"
                     onClick={onCancel}
                     disabled={disabled || isLoading}
+                    className="w-full sm:w-auto"
                   >
                     {cancelButtonText}
                   </Button>
@@ -346,6 +348,7 @@ export const InputCard: React.FC<InputCardProps> = ({
                   isLoading={isLoading}
                   disabled={disabled}
                   leftIcon={submitIcon}
+                  className="w-full sm:w-auto"
                 >
                   {submitButtonText}
                 </Button>
