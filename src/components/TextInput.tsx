@@ -87,3 +87,60 @@ export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(
 )
 
 TextInput.displayName = 'TextInput'
+
+export const TextArea = forwardRef<HTMLTextAreaElement, import('../types').TextAreaProps>(
+  (
+    {
+      label,
+      error,
+      helperText,
+      size = 'md',
+      fullWidth = false,
+      containerClassName = '',
+      className = '',
+      disabled = false,
+      id,
+      rows = 3,
+      ...props
+    },
+    ref
+  ) => {
+    const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined)
+    const { input: sizeClass } = sizeStyles[size]
+
+    return (
+      <div className={`flex flex-col gap-1.5 ${fullWidth ? 'w-full' : 'w-auto'} ${containerClassName}`}>
+        {label && (
+          <label
+            htmlFor={inputId}
+            className="text-xs font-semibold text-darkblue dark:text-offwhite transition-colors"
+          >
+            {label}
+          </label>
+        )}
+
+        <textarea
+          ref={ref}
+          id={inputId}
+          rows={rows}
+          disabled={disabled}
+          className={`w-full outline-none transition-all duration-150 border bg-white dark:bg-[#23273e] text-darkblue dark:text-offwhite placeholder:text-gray/60 disabled:opacity-50 disabled:cursor-not-allowed ${sizeClass} ${
+            error
+              ? 'border-orange focus:ring-2 focus:ring-orange/25'
+              : 'border-gray/30 hover:border-gray/60 focus:border-lightblue focus:ring-2 focus:ring-lightblue/25 dark:border-gray/40 dark:hover:border-gray/60 dark:focus:border-lightblue'
+          } ${className}`}
+          {...props}
+        />
+
+        {error ? (
+          <p className="text-xs text-orange font-medium">{error}</p>
+        ) : helperText ? (
+          <p className="text-xs text-gray">{helperText}</p>
+        ) : null}
+      </div>
+    )
+  }
+)
+
+TextArea.displayName = 'TextArea'
+

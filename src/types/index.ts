@@ -31,6 +31,89 @@ export interface TextInputProps extends Omit<InputHTMLAttributes<HTMLInputElemen
   containerClassName?: string
 }
 
+export interface TextAreaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  label?: string
+  error?: string
+  helperText?: string
+  size?: InputSize
+  fullWidth?: boolean
+  containerClassName?: string
+}
+
+export type InputCardVariant = 'card' | 'embedded' | 'flat' | 'bordered'
+
+export interface InputCardFieldOption {
+  label: string
+  value: string
+}
+
+export interface InputCardField {
+  name: string
+  label?: string
+  type?: 'text' | 'email' | 'password' | 'number' | 'tel' | 'textarea' | 'select'
+  placeholder?: string
+  defaultValue?: string
+  value?: string
+  onChange?: (value: string) => void
+  error?: string
+  helperText?: string
+  required?: boolean
+  disabled?: boolean
+  leftIcon?: ReactNode
+  rightIcon?: ReactNode
+  rows?: number
+  options?: (string | InputCardFieldOption)[]
+  colSpan?: 1 | 2 | 3 | 'full'
+  className?: string
+}
+
+export interface InputCardProps {
+  title?: ReactNode
+  subtitle?: ReactNode
+  icon?: ReactNode
+  iconBgColor?: string
+  iconColor?: string
+  fields?: InputCardField[]
+  values?: Record<string, string>
+  onChange?: (name: string, value: string) => void
+  errors?: Record<string, string>
+  onSubmit?: (e: React.FormEvent, values: Record<string, string>) => void | Promise<void>
+  onCancel?: () => void
+  onReset?: () => void
+  submitButtonText?: ReactNode
+  cancelButtonText?: ReactNode
+  resetButtonText?: ReactNode
+  submitIcon?: ReactNode
+  showCancel?: boolean
+  showReset?: boolean
+  isLoading?: boolean
+  disabled?: boolean
+  variant?: InputCardVariant
+  actions?: ReactNode
+  children?: ReactNode
+  className?: string
+  headerClassName?: string
+  bodyClassName?: string
+  footerClassName?: string
+  alert?: { type: 'success' | 'error' | 'info'; message: string } | null
+}
+
+export interface AddGrievanceCardProps {
+  initialData?: Partial<GrievanceFormData>
+  onSubmit?: (data: GrievanceFormData) => Promise<void> | void
+  onSuccess?: (createdRecord: FormResponseRow) => void
+  onCancel?: () => void
+  title?: string
+  subtitle?: string
+  icon?: ReactNode
+  showCancel?: boolean
+  submitButtonText?: string
+  className?: string
+  variant?: InputCardVariant
+  autoFocus?: boolean
+  readOnlyStatus?: boolean
+}
+
 export interface DrawerProps {
   isOpen: boolean
   onClose: () => void
@@ -273,6 +356,30 @@ export interface RecentGrievanceItem {
   status: 'Pending' | 'In Progress' | 'Resolved' | string
 }
 
+export interface GrievancePageProps {
+  isDark: boolean
+  onToggleTheme: () => void
+  currentPath?: string
+  onNavigate?: (path: string) => void
+}
+
+export interface GrievanceFormData {
+  name: string
+  email: string
+  type_of_grievance: string
+  problem_description: string
+  branch: string
+  section: string
+  year: string
+  room_no_and_block_name: string
+  bus_route: string
+  bus_number: string
+  suggestions: string
+  status: string
+  source: string
+}
+
+
 export interface BlockCoordinatorsProps {
   isDark: boolean
   onToggleTheme: () => void
@@ -300,3 +407,89 @@ export interface CoordinatorStatItem {
   icon: ComponentType<{ className?: string }>
   color: string
 }
+
+// ==========================================
+// Database Schema Types (Supabase Public Tables)
+// ==========================================
+
+export interface BlockCoordinatorRow {
+  name: string | null
+  block: string | null
+  phone_no: string | null
+}
+
+export interface FormResponseRow {
+  id: number
+  created_at: string | null
+  email: string | null
+  name: string | null
+  type_of_grievance: string | null
+  bus_route: string | null
+  bus_number: string | null
+  problem_description: string | null
+  branch: string | null
+  section: string | null
+  year: string | null
+  room_no_and_block_name: string | null
+  suggestions: string | null
+  status: string | null
+  source: string | null
+}
+
+export interface PermissionRow {
+  id: number
+  name: string
+  resource: string
+  action: string
+  description: string | null
+  created_at: string
+}
+
+export interface ProfileRow {
+  firebase_uid: string
+  role: string
+}
+
+export interface RolePermissionRow {
+  role_id: number
+  permission_id: number
+}
+
+export interface RoleRouteRow {
+  role: string
+  route_id: number
+}
+
+export interface RoleRow {
+  id: number
+  name: string
+  description: string | null
+  created_at: string
+}
+
+export interface RouteRow {
+  id: number
+  name: string
+  path: string
+  icon: string | null
+  sort_order: number | null
+}
+
+export interface SourceRow {
+  id: number
+  source_name: string
+}
+
+export interface DatabaseSchema {
+  block_coordinators: BlockCoordinatorRow
+  form_responses: FormResponseRow
+  permissions: PermissionRow
+  profiles: ProfileRow
+  role_permissions: RolePermissionRow
+  role_routes: RoleRouteRow
+  roles: RoleRow
+  routes: RouteRow
+  sources: SourceRow
+}
+
+

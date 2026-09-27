@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Menu,
   Sun,
@@ -10,13 +10,13 @@ import {
   AlertCircle,
   TrendingUp,
   User as UserIcon,
-  Search,
-  Filter
+  RefreshCw,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
 import { Button } from '../components/Buttons'
 import { Drawer } from '../components/Drawer'
-import type { HomeProps, DashboardStatItem, RecentGrievanceItem } from '../types'
+import type { HomeProps, DashboardStatItem, FormResponseRow } from '../types'
 
 export const Home = ({
   isDark,
@@ -26,72 +26,109 @@ export const Home = ({
 }: HomeProps) => {
   const { user, signOutUser } = useAuth()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [grievances, setGrievances] = useState<FormResponseRow[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchGrievances = async () => {
+    try {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from('form_responses')
+        .select('*')
+        .order('id', { ascending: false })
+
+      if (error) {
+        console.error('[Home] Error fetching grievances from DB:', error.message)
+        setGrievances([])
+      } else {
+        setGrievances(data || [])
+      }
+    } catch (err) {
+      console.error('[Home] Unexpected error fetching grievances:', err)
+      setGrievances([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchGrievances()
+  }, [])
+
+  // Dynamic statistics calculated directly from Supabase form_responses
+  const totalCount = grievances.length
+  const pendingCount = grievances.filter(
+    (g) => (g.status || '').toLowerCase() === 'pending'
+  ).length
+  const inProgressCount = grievances.filter((g) => {
+    const s = (g.status || '').toLowerCase()
+    return s === 'in progress' || s === 'under review'
+  }).length
+  const resolvedCount = grievances.filter(
+    (g) => (g.status || '').toLowerCase() === 'resolved'
+  ).length
 
   const stats: DashboardStatItem[] = [
     {
       title: 'Total Grievances',
-      count: '128',
-      change: '+12% from last week',
+      count: totalCount.toString(),
+      change: `${totalCount} records logged in DB`,
       icon: Inbox,
       color: 'bg-lightblue/15 text-lightblue dark:bg-lightblue/25',
     },
     {
       title: 'Pending Review',
-      count: '24',
-      change: '4 high priority',
+      count: pendingCount.toString(),
+      change: `${pendingCount} awaiting initial review`,
       icon: Clock,
       color: 'bg-orange/15 text-orange dark:bg-orange/25',
     },
     {
       title: 'In Progress',
-      count: '42',
-      change: '18 assigned',
+      count: inProgressCount.toString(),
+      change: `${inProgressCount} currently being handled`,
       icon: AlertCircle,
       color: 'bg-darkblue/15 text-darkblue dark:bg-darkblue/40 dark:text-offwhite',
     },
     {
       title: 'Resolved',
-      count: '62',
-      change: '94% satisfaction rate',
+      count: resolvedCount.toString(),
+      change: `${resolvedCount} resolved successfully`,
       icon: CheckCircle2,
       color: 'bg-green-500/15 text-green-600 dark:bg-green-500/25 dark:text-green-400',
     },
   ]
 
-  const recentGrievances: RecentGrievanceItem[] = [
-    {
-      id: 'GRV-2026-089',
-      title: 'Delay in Document Verification',
-      department: 'Revenue & Records',
-      date: 'Today, 10:24 AM',
-      priority: 'High',
-      status: 'Pending',
-    },
-    {
-      id: 'GRV-2026-088',
-      title: 'Sanitation Maintenance in Ward 4',
-      department: 'Public Works',
-      date: 'Yesterday, 04:15 PM',
-      priority: 'Medium',
-      status: 'In Progress',
-    },
-    {
-      id: 'GRV-2026-087',
-      title: 'Streetlight outage on Main Blvd',
-      department: 'Electricity Dept',
-      date: 'Sep 24, 2026',
-      priority: 'Low',
-      status: 'Resolved',
-    },
-    {
-      id: 'GRV-2026-086',
-      title: 'Water Supply disruption complaint',
-      department: 'Water Board',
-      date: 'Sep 23, 2026',
-      priority: 'High',
-      status: 'In Progress',
-    },
-  ]
+  const recentGrievances = grievances.slice(0, 6)
+
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return 'N/A'
+    try {
+      const d = new Date(dateStr)
+      if (isNaN(d.getTime())) return dateStr
+      return d.toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      })
+    } catch {
+      return dateStr
+    }
+  }
+
+  const getStatusBadgeClass = (status: string | null) => {
+    const s = (status || '').toLowerCase()
+    if (s === 'resolved') {
+      return 'bg-green-500/15 text-green-600 dark:bg-green-500/25 dark:text-green-400'
+    }
+    if (s === 'in progress' || s === 'under review') {
+      return 'bg-lightblue/15 text-lightblue dark:bg-lightblue/25'
+    }
+    if (s === 'rejected') {
+      return 'bg-red-500/15 text-red-600 dark:bg-red-500/25 dark:text-red-400'
+    }
+    return 'bg-orange/15 text-orange dark:bg-orange/25'
+  }
 
   return (
     <div className="min-h-screen bg-offwhite dark:bg-[#151726] text-darkblue dark:text-offwhite transition-colors duration-200">
@@ -165,10 +202,10 @@ export const Home = ({
               Real-time Grievance Analytics
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              Welcome back, {user?.email?.split('@')[0] || 'Admin'}
+              Welcome back, {user?.email?.split('@')[0] || 'User'}
             </h2>
             <p className="text-sm sm:text-base text-offwhite/85">
-              Here is an overview of active grievances, resolution progress, and department activities for today.
+              Live overview of active grievances, resolution status, and logged complaints queried directly from the database.
             </p>
           </div>
 
@@ -196,7 +233,7 @@ export const Home = ({
                 </div>
                 <div>
                   <div className="text-3xl font-bold text-darkblue dark:text-offwhite">
-                    {item.count}
+                    {loading ? '...' : item.count}
                   </div>
                   <p className="text-xs text-gray mt-1">{item.change}</p>
                 </div>
@@ -213,26 +250,27 @@ export const Home = ({
                 Recent Grievances
               </h3>
               <p className="text-xs sm:text-sm text-gray mt-0.5">
-                Monitor and process the latest reported citizen complaints
+                Latest grievances logged in the system
               </p>
             </div>
 
             <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="w-4 h-4 text-gray absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Search grievance..."
-                  className="pl-9 pr-3 py-2 text-xs rounded-xl bg-offwhite dark:bg-[#151726] border border-gray/20 text-darkblue dark:text-offwhite placeholder:text-gray/70 focus:outline-none focus:border-lightblue transition-colors"
-                />
-              </div>
-              <button
-                type="button"
-                className="p-2 rounded-xl bg-offwhite dark:bg-[#151726] border border-gray/20 text-gray hover:text-darkblue dark:hover:text-offwhite transition-colors"
-                aria-label="Filter grievances"
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchGrievances}
+                isLoading={loading}
+                leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />}
               >
-                <Filter className="w-4 h-4" />
-              </button>
+                Refresh
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => onNavigate && onNavigate('/grievances')}
+              >
+                Manage All
+              </Button>
             </div>
           </div>
 
@@ -242,59 +280,67 @@ export const Home = ({
               <thead>
                 <tr className="border-b border-gray/20 text-xs font-semibold text-gray uppercase tracking-wider">
                   <th className="pb-3 pl-2">ID</th>
-                  <th className="pb-3">Title &amp; Subject</th>
-                  <th className="pb-3">Department</th>
+                  <th className="pb-3">Type &amp; Subject</th>
+                  <th className="pb-3">Submitted By</th>
+                  <th className="pb-3">Branch / Location</th>
                   <th className="pb-3">Reported</th>
-                  <th className="pb-3">Priority</th>
                   <th className="pb-3 pr-2">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray/15">
-                {recentGrievances.map((item) => (
-                  <tr
-                    key={item.id}
-                    className="hover:bg-offwhite/60 dark:hover:bg-[#1a1d2e]/60 transition-colors"
-                  >
-                    <td className="py-4 pl-2 font-mono text-xs font-bold text-lightblue">
-                      {item.id}
-                    </td>
-                    <td className="py-4 font-semibold text-darkblue dark:text-offwhite">
-                      {item.title}
-                    </td>
-                    <td className="py-4 text-gray text-xs">
-                      {item.department}
-                    </td>
-                    <td className="py-4 text-gray text-xs">
-                      {item.date}
-                    </td>
-                    <td className="py-4">
-                      <span
-                        className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold ${
-                          item.priority === 'High'
-                            ? 'bg-orange/15 text-orange'
-                            : item.priority === 'Medium'
-                            ? 'bg-lightblue/15 text-lightblue'
-                            : 'bg-gray/15 text-gray'
-                        }`}
-                      >
-                        {item.priority}
-                      </span>
-                    </td>
-                    <td className="py-4 pr-2">
-                      <span
-                        className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold ${
-                          item.status === 'Resolved'
-                            ? 'bg-green-500/15 text-green-600 dark:text-green-400'
-                            : item.status === 'In Progress'
-                            ? 'bg-lightblue/15 text-lightblue'
-                            : 'bg-orange/15 text-orange'
-                        }`}
-                      >
-                        {item.status}
-                      </span>
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-gray text-xs">
+                      Loading grievances from database...
                     </td>
                   </tr>
-                ))}
+                ) : recentGrievances.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-gray text-xs">
+                      No grievances found in database.
+                    </td>
+                  </tr>
+                ) : (
+                  recentGrievances.map((item) => (
+                    <tr
+                      key={item.id}
+                      className="hover:bg-offwhite/60 dark:hover:bg-[#1a1d2e]/60 transition-colors"
+                    >
+                      <td className="py-4 pl-2 font-mono text-xs font-bold text-lightblue">
+                        #{item.id}
+                      </td>
+                      <td className="py-4">
+                        <div className="font-semibold text-darkblue dark:text-offwhite line-clamp-1 max-w-xs">
+                          {item.type_of_grievance || 'General Grievance'}
+                        </div>
+                        {item.problem_description && (
+                          <div className="text-xs text-gray line-clamp-1 max-w-sm mt-0.5">
+                            {item.problem_description}
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-4 text-xs text-darkblue dark:text-offwhite">
+                        <div>{item.name || 'Anonymous'}</div>
+                        <div className="text-gray text-[11px]">{item.email || '-'}</div>
+                      </td>
+                      <td className="py-4 text-gray text-xs">
+                        {item.branch || item.room_no_and_block_name || item.bus_route || '-'}
+                      </td>
+                      <td className="py-4 text-gray text-xs">
+                        {formatDate(item.created_at)}
+                      </td>
+                      <td className="py-4 pr-2">
+                        <span
+                          className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold ${getStatusBadgeClass(
+                            item.status
+                          )}`}
+                        >
+                          {item.status || 'Pending'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

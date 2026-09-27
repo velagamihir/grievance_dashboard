@@ -5,6 +5,7 @@ import { Login } from './pages/Login'
 import { ForgotPassword } from './pages/ForgotPassword'
 import { Home } from './pages/Home'
 import { BlockCoordinators } from './pages/BlockCoordinators'
+import { GrievancePage } from './pages/GrievancePage'
 import type { MainRouterProps } from './types'
 
 function MainRouter({ isDark, onToggleTheme }: MainRouterProps) {
@@ -66,6 +67,23 @@ function MainRouter({ isDark, onToggleTheme }: MainRouterProps) {
           />
         )}
       </div>
+    )
+  }
+
+  if (
+    currentPath === '/grievances' ||
+    currentPath === '/grievance' ||
+    currentPath === '/complaints' ||
+    currentPath.startsWith('/grievances') ||
+    currentPath.startsWith('/grievance')
+  ) {
+    return (
+      <GrievancePage
+        isDark={isDark}
+        onToggleTheme={onToggleTheme}
+        currentPath={currentPath}
+        onNavigate={handleNavigate}
+      />
     )
   }
 

@@ -22,6 +22,20 @@ import type {
   ListVariant,
 } from '../types'
 
+export type {
+  ListProps,
+  ListItemProps,
+  ListHeaderProps,
+  ListPaginationProps,
+  ListFilterProps,
+  ListEmptyStateProps,
+  ListBadgeProps,
+  ListBadgeVariant,
+  ListItemVariant,
+  ListItemSize,
+  ListVariant,
+}
+
 // ==========================================
 // List Badge Component
 // ==========================================

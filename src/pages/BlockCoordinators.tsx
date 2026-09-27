@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Menu,
   Sun,
@@ -7,19 +7,21 @@ import {
   Users,
   MapPin,
   Phone,
-  Mail,
   Search,
-  UserPlus,
   CheckCircle2,
-  Clock,
   AlertCircle,
-  MoreVertical,
   User as UserIcon,
+  RefreshCw,
+  Plus,
+  X,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { usePermissions } from '../hooks/usePermissions'
+import { supabase } from '../lib/supabase'
 import { Button } from '../components/Buttons'
 import { Drawer } from '../components/Drawer'
-import type { BlockCoordinatorsProps, Coordinator, CoordinatorStatItem } from '../types'
+import { TextInput } from '../components/TextInput'
+import type { BlockCoordinatorsProps, BlockCoordinatorRow, CoordinatorStatItem, FormResponseRow } from '../types'
 
 export const BlockCoordinators = ({
   isDark,
@@ -28,119 +30,165 @@ export const BlockCoordinators = ({
   onNavigate,
 }: BlockCoordinatorsProps) => {
   const { user, signOutUser } = useAuth()
+  const { role, hasPermission } = usePermissions()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('All')
+  const [coordinators, setCoordinators] = useState<BlockCoordinatorRow[]>([])
+  const [grievances, setGrievances] = useState<FormResponseRow[]>([])
+  const [loading, setLoading] = useState(true)
+
+  // Add coordinator modal state
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [newCoordinator, setNewCoordinator] = useState({
+    name: '',
+    block: '',
+    phone_no: '',
+  })
+  const [formError, setFormError] = useState<string | null>(null)
+
+  const fetchData = async () => {
+    try {
+      setLoading(true)
+      const [coordRes, grvRes] = await Promise.all([
+        supabase.from('block_coordinators').select('*'),
+        supabase.from('form_responses').select('*'),
+      ])
+
+      if (coordRes.error) {
+        console.error('[BlockCoordinators] Error querying block_coordinators:', coordRes.error.message)
+        setCoordinators([])
+      } else {
+        setCoordinators(coordRes.data || [])
+      }
+
+      if (grvRes.error) {
+        console.warn('[BlockCoordinators] Error querying form_responses:', grvRes.error.message)
+        setGrievances([])
+      } else {
+        setGrievances(grvRes.data || [])
+      }
+    } catch (err) {
+      console.error('[BlockCoordinators] Unexpected error:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchData()
+  }, [])
+
+  const handleAddCoordinator = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newCoordinator.name.trim() || !newCoordinator.block.trim()) {
+      setFormError('Name and Block are required.')
+      return
+    }
+
+    try {
+      setIsSubmitting(true)
+      setFormError(null)
+
+      const { data, error } = await supabase
+        .from('block_coordinators')
+        .insert([
+          {
+            name: newCoordinator.name.trim(),
+            block: newCoordinator.block.trim(),
+            phone_no: newCoordinator.phone_no.trim() || null,
+          },
+        ])
+        .select()
+
+      if (error) {
+        setFormError(error.message)
+      } else {
+        if (data && data.length > 0) {
+          setCoordinators((prev) => [...prev, data[0]])
+        } else {
+          await fetchData()
+        }
+        setIsAddModalOpen(false)
+        setNewCoordinator({ name: '', block: '', phone_no: '' })
+      }
+    } catch (err: any) {
+      setFormError(err?.message || 'Failed to add coordinator')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // Dynamic calculations from live DB data
+  const totalCoordinators = coordinators.length
+  const uniqueBlocksCount = new Set(
+    coordinators.map((c) => (c.block || '').trim()).filter(Boolean)
+  ).size
+  const activeCasesCount = grievances.filter((g) => {
+    const s = (g.status || '').toLowerCase()
+    return s === 'pending' || s === 'in progress' || s === 'under review'
+  }).length
+  const resolvedCasesCount = grievances.filter(
+    (g) => (g.status || '').toLowerCase() === 'resolved'
+  ).length
 
   const stats: CoordinatorStatItem[] = [
     {
       title: 'Total Coordinators',
-      count: '16',
-      change: 'Covering 24 Wards',
+      count: totalCoordinators.toString(),
+      change: `${uniqueBlocksCount} unique blocks covered`,
       icon: Users,
       color: 'bg-lightblue/15 text-lightblue dark:bg-lightblue/25',
     },
     {
-      title: 'Active on Duty',
-      count: '14',
-      change: '2 on scheduled leave',
-      icon: CheckCircle2,
+      title: 'Blocks Assigned',
+      count: uniqueBlocksCount.toString(),
+      change: 'Active administrative zones',
+      icon: MapPin,
       color: 'bg-green-500/15 text-green-600 dark:bg-green-500/25 dark:text-green-400',
     },
     {
       title: 'Active Block Cases',
-      count: '68',
-      change: 'Assigned to coordinators',
+      count: activeCasesCount.toString(),
+      change: 'Pending live resolution',
       icon: AlertCircle,
       color: 'bg-orange/15 text-orange dark:bg-orange/25',
     },
     {
-      title: 'Avg Resolution Time',
-      count: '3.8h',
-      change: '-18% from last month',
-      icon: Clock,
+      title: 'Resolved Grievances',
+      count: resolvedCasesCount.toString(),
+      change: 'Successfully addressed',
+      icon: CheckCircle2,
       color: 'bg-darkblue/15 text-darkblue dark:bg-darkblue/40 dark:text-offwhite',
     },
   ]
 
-  const coordinators: Coordinator[] = [
-    {
-      id: 'BC-01',
-      name: 'Rajesh Sharma',
-      block: 'North Block (Ward 1 - 4)',
-      zone: 'North District',
-      email: 'rajesh.sharma@gov.in',
-      phone: '+91 98765 43210',
-      activeGrievances: 6,
-      resolvedCount: 42,
-      status: 'Active',
-    },
-    {
-      id: 'BC-02',
-      name: 'Pooja Verma',
-      block: 'Central Block (Ward 5 - 8)',
-      zone: 'Central District',
-      email: 'pooja.verma@gov.in',
-      phone: '+91 98765 43211',
-      activeGrievances: 12,
-      resolvedCount: 58,
-      status: 'Busy',
-    },
-    {
-      id: 'BC-03',
-      name: 'Anil Deshmukh',
-      block: 'East Block (Ward 9 - 12)',
-      zone: 'East District',
-      email: 'anil.deshmukh@gov.in',
-      phone: '+91 98765 43212',
-      activeGrievances: 4,
-      resolvedCount: 31,
-      status: 'Active',
-    },
-    {
-      id: 'BC-04',
-      name: 'Sunita Rao',
-      block: 'South Block (Ward 13 - 16)',
-      zone: 'South District',
-      email: 'sunita.rao@gov.in',
-      phone: '+91 98765 43213',
-      activeGrievances: 8,
-      resolvedCount: 49,
-      status: 'Active',
-    },
-    {
-      id: 'BC-05',
-      name: 'Vikas Patel',
-      block: 'West Block (Ward 17 - 20)',
-      zone: 'West District',
-      email: 'vikas.patel@gov.in',
-      phone: '+91 98765 43214',
-      activeGrievances: 0,
-      resolvedCount: 26,
-      status: 'On Leave',
-    },
-    {
-      id: 'BC-06',
-      name: 'Deepak Nair',
-      block: 'Metro Block (Ward 21 - 24)',
-      zone: 'Urban Metro District',
-      email: 'deepak.nair@gov.in',
-      phone: '+91 98765 43215',
-      activeGrievances: 9,
-      resolvedCount: 65,
-      status: 'Active',
-    },
-  ]
-
   const filteredCoordinators = coordinators.filter((c) => {
-    const matchesSearch =
-      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.block.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.zone.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.email.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesStatus = statusFilter === 'All' || c.status === statusFilter
-    return matchesSearch && matchesStatus
+    const query = searchQuery.toLowerCase()
+    const nameMatch = (c.name || '').toLowerCase().includes(query)
+    const blockMatch = (c.block || '').toLowerCase().includes(query)
+    const phoneMatch = (c.phone_no || '').toLowerCase().includes(query)
+    return nameMatch || blockMatch || phoneMatch
   })
+
+  // Get grievance count matching a coordinator's block
+  const getCasesForBlock = (blockName: string | null) => {
+    if (!blockName) return { active: 0, resolved: 0 }
+    const norm = blockName.toLowerCase()
+    const matching = grievances.filter(
+      (g) => (g.room_no_and_block_name || '').toLowerCase().includes(norm)
+    )
+    const active = matching.filter((g) => {
+      const s = (g.status || '').toLowerCase()
+      return s === 'pending' || s === 'in progress' || s === 'under review'
+    }).length
+    const resolved = matching.filter(
+      (g) => (g.status || '').toLowerCase() === 'resolved'
+    ).length
+    return { active, resolved }
+  }
+
+  const canManage = hasPermission('block_coordinators', 'insert') || role === 'admin'
 
   return (
     <div className="min-h-screen bg-offwhite dark:bg-[#151726] text-darkblue dark:text-offwhite transition-colors duration-200">
@@ -217,7 +265,7 @@ export const BlockCoordinators = ({
               Block &amp; Ward Coordinators
             </h2>
             <p className="text-sm sm:text-base text-offwhite/85">
-              Assign block officers, monitor on-ground grievance response rates, and coordinate field resolutions.
+              Live coordinator contacts and jurisdiction assignments fetched directly from the database.
             </p>
           </div>
 
@@ -245,7 +293,7 @@ export const BlockCoordinators = ({
                 </div>
                 <div>
                   <div className="text-3xl font-bold text-darkblue dark:text-offwhite">
-                    {item.count}
+                    {loading ? '...' : item.count}
                   </div>
                   <p className="text-xs text-gray mt-1">{item.change}</p>
                 </div>
@@ -262,7 +310,7 @@ export const BlockCoordinators = ({
                 Coordinators Directory
               </h3>
               <p className="text-xs sm:text-sm text-gray mt-0.5">
-                Active field officers overseeing municipal grievance resolution
+                Active field officers overseeing grievance resolution
               </p>
             </div>
 
@@ -279,31 +327,26 @@ export const BlockCoordinators = ({
                 />
               </div>
 
-              {/* Status Filter */}
-              <div className="flex items-center gap-1 bg-offwhite dark:bg-[#151726] p-1 rounded-xl border border-gray/20 text-xs">
-                {['All', 'Active', 'Busy', 'On Leave'].map((st) => (
-                  <button
-                    key={st}
-                    type="button"
-                    onClick={() => setStatusFilter(st)}
-                    className={`px-2.5 py-1 rounded-lg font-medium transition-colors ${
-                      statusFilter === st
-                        ? 'bg-darkblue text-offwhite dark:bg-orange dark:text-darkblue shadow-xs'
-                        : 'text-gray hover:text-darkblue dark:hover:text-offwhite'
-                    }`}
-                  >
-                    {st}
-                  </button>
-                ))}
-              </div>
-
               <Button
-                variant="primary"
+                variant="outline"
                 size="sm"
-                leftIcon={<UserPlus className="w-4 h-4" />}
+                onClick={fetchData}
+                isLoading={loading}
+                leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />}
               >
-                Add Coordinator
+                Refresh
               </Button>
+
+              {canManage && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setIsAddModalOpen(true)}
+                  leftIcon={<Plus className="w-4 h-4" />}
+                >
+                  Add Coordinator
+                </Button>
+              )}
             </div>
           </div>
 
@@ -314,100 +357,169 @@ export const BlockCoordinators = ({
                 <tr className="border-b border-gray/20 text-xs font-semibold text-gray uppercase tracking-wider">
                   <th className="pb-3 pl-2">Coordinator</th>
                   <th className="pb-3">Block &amp; Jurisdiction</th>
-                  <th className="pb-3">Contact</th>
+                  <th className="pb-3">Phone Number</th>
                   <th className="pb-3">Active Cases</th>
-                  <th className="pb-3">Resolved</th>
-                  <th className="pb-3">Status</th>
-                  <th className="pb-3 pr-2 text-right">Action</th>
+                  <th className="pb-3 pr-2">Resolved Cases</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray/15">
-                {filteredCoordinators.length === 0 ? (
+                {loading ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-gray text-xs">
-                      No block coordinators match your search criteria.
+                    <td colSpan={5} className="py-8 text-center text-gray text-xs">
+                      Loading coordinators from database...
+                    </td>
+                  </tr>
+                ) : filteredCoordinators.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-gray text-xs">
+                      No block coordinators found in database.
                     </td>
                   </tr>
                 ) : (
-                  filteredCoordinators.map((c) => (
-                    <tr
-                      key={c.id}
-                      className="hover:bg-offwhite/60 dark:hover:bg-[#1a1d2e]/60 transition-colors"
-                    >
-                      <td className="py-4 pl-2">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-2xl bg-lightblue/20 text-lightblue dark:bg-orange/20 dark:text-orange flex items-center justify-center font-bold text-sm uppercase shadow-xs">
-                            {c.name.charAt(0)}
-                          </div>
-                          <div>
-                            <div className="font-semibold text-darkblue dark:text-offwhite">
-                              {c.name}
+                  filteredCoordinators.map((c, idx) => {
+                    const blockCases = getCasesForBlock(c.block)
+                    return (
+                      <tr
+                        key={`${c.name}-${c.block}-${idx}`}
+                        className="hover:bg-offwhite/60 dark:hover:bg-[#1a1d2e]/60 transition-colors"
+                      >
+                        <td className="py-4 pl-2">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-lightblue/20 text-lightblue dark:bg-orange/20 dark:text-orange flex items-center justify-center font-bold text-sm uppercase shadow-xs">
+                              {(c.name || 'C').charAt(0)}
                             </div>
-                            <span className="text-[11px] font-mono text-gray">{c.id}</span>
+                            <div>
+                              <div className="font-semibold text-darkblue dark:text-offwhite">
+                                {c.name || 'Unnamed Coordinator'}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </td>
+                        </td>
 
-                      <td className="py-4">
-                        <div className="font-medium text-darkblue dark:text-offwhite flex items-center gap-1.5">
-                          <MapPin className="w-3.5 h-3.5 text-gray shrink-0" />
-                          <span>{c.block}</span>
-                        </div>
-                        <span className="text-xs text-gray">{c.zone}</span>
-                      </td>
+                        <td className="py-4">
+                          <div className="font-medium text-darkblue dark:text-offwhite flex items-center gap-1.5">
+                            <MapPin className="w-3.5 h-3.5 text-gray shrink-0" />
+                            <span>{c.block || 'Unassigned Block'}</span>
+                          </div>
+                        </td>
 
-                      <td className="py-4 text-xs space-y-0.5">
-                        <div className="flex items-center gap-1.5 text-darkblue dark:text-offwhite">
-                          <Mail className="w-3.5 h-3.5 text-gray shrink-0" />
-                          <span>{c.email}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-gray">
-                          <Phone className="w-3.5 h-3.5 text-gray shrink-0" />
-                          <span>{c.phone}</span>
-                        </div>
-                      </td>
+                        <td className="py-4 text-xs">
+                          {c.phone_no ? (
+                            <div className="flex items-center gap-1.5 text-darkblue dark:text-offwhite">
+                              <Phone className="w-3.5 h-3.5 text-gray shrink-0" />
+                              <a
+                                href={`tel:${c.phone_no}`}
+                                className="hover:text-lightblue hover:underline"
+                              >
+                                {c.phone_no}
+                              </a>
+                            </div>
+                          ) : (
+                            <span className="text-gray">-</span>
+                          )}
+                        </td>
 
-                      <td className="py-4">
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-orange/15 text-orange dark:bg-orange/25">
-                          {c.activeGrievances} Pending
-                        </span>
-                      </td>
+                        <td className="py-4">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-orange/15 text-orange dark:bg-orange/25">
+                            {blockCases.active} Pending
+                          </span>
+                        </td>
 
-                      <td className="py-4 font-semibold text-green-600 dark:text-green-400 text-xs">
-                        {c.resolvedCount} Cases
-                      </td>
-
-                      <td className="py-4">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                            c.status === 'Active'
-                              ? 'bg-green-500/15 text-green-600 dark:bg-green-500/25 dark:text-green-400'
-                              : c.status === 'Busy'
-                              ? 'bg-orange/15 text-orange dark:bg-orange/25'
-                              : 'bg-gray/15 text-gray'
-                          }`}
-                        >
-                          {c.status}
-                        </span>
-                      </td>
-
-                      <td className="py-4 pr-2 text-right">
-                        <button
-                          type="button"
-                          className="p-1.5 rounded-lg text-gray hover:text-darkblue dark:hover:text-offwhite hover:bg-gray/10 dark:hover:bg-gray/20 transition-colors"
-                          aria-label="Coordinator options"
-                        >
-                          <MoreVertical className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                        <td className="py-4 pr-2 font-semibold text-green-600 dark:text-green-400 text-xs">
+                          {blockCases.resolved} Resolved
+                        </td>
+                      </tr>
+                    )
+                  })
                 )}
               </tbody>
             </table>
           </div>
         </div>
       </main>
+
+      {/* Add Coordinator Modal */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="bg-white dark:bg-[#1a1d2e] rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray/20 space-y-5 animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-gray/15">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-lightblue/15 text-lightblue">
+                  <Users className="w-5 h-5" />
+                </div>
+                <h3 className="font-bold text-lg text-darkblue dark:text-offwhite">
+                  Add Block Coordinator
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(false)}
+                className="p-1.5 rounded-lg text-gray hover:text-darkblue dark:hover:text-offwhite hover:bg-gray/10 dark:hover:bg-gray/20"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {formError && (
+              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-600 dark:text-red-400">
+                {formError}
+              </div>
+            )}
+
+            <form onSubmit={handleAddCoordinator} className="space-y-4">
+              <TextInput
+                label="Full Name"
+                placeholder="e.g. Ramesh Kumar"
+                required
+                value={newCoordinator.name}
+                onChange={(e) =>
+                  setNewCoordinator((prev) => ({ ...prev, name: e.target.value }))
+                }
+              />
+
+              <TextInput
+                label="Block / Ward Name"
+                placeholder="e.g. North Block, Block A, Room 101-120"
+                required
+                value={newCoordinator.block}
+                onChange={(e) =>
+                  setNewCoordinator((prev) => ({ ...prev, block: e.target.value }))
+                }
+              />
+
+              <TextInput
+                label="Phone Number"
+                placeholder="e.g. +91 98765 43210"
+                type="tel"
+                value={newCoordinator.phone_no}
+                onChange={(e) =>
+                  setNewCoordinator((prev) => ({ ...prev, phone_no: e.target.value }))
+                }
+              />
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray/15">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsAddModalOpen(false)}
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="sm"
+                  isLoading={isSubmitting}
+                >
+                  Save Coordinator
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
