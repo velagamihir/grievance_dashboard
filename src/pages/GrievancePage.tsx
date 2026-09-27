@@ -82,6 +82,7 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [selectedGrievance, setSelectedGrievance] = useState<FormResponseRow | null>(null)
   const [formData, setFormData] = useState<GrievanceFormData>(initialGrievanceFormData)
+  const [editError, setEditError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
@@ -215,6 +216,7 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
       return
     }
     setSelectedGrievance(item)
+    setEditError(null)
     setFormData({
       name: item.name || '',
       email: item.email || '',
@@ -237,9 +239,12 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
   const handleUpdateGrievance = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedGrievance) return
+    setEditError(null)
 
     if (!canEditGrievance) {
-      showToast('Permission Denied: You do not have permission to edit grievance details.', 'error')
+      const msg = 'Permission Denied: You do not have permission to edit grievance details.'
+      setEditError(msg)
+      showToast(msg, 'error')
       return
     }
 
@@ -250,7 +255,9 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
     })
 
     if (!locationValidation.isValid) {
-      showToast(locationValidation.error || 'Either Room No & Block or Bus No / Route is mandatory.', 'error')
+      const msg = locationValidation.error || 'Either Room No & Block or Bus No / Route is mandatory.'
+      setEditError(msg)
+      showToast(msg, 'error')
       return
     }
 
@@ -378,7 +385,7 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
       {/* Floating Toast Notification */}
       {toast && (
         <div
-          className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl shadow-xl text-xs font-semibold backdrop-blur-md transition-all duration-300 animate-in fade-in slide-in-from-bottom-3 ${toast.type === 'success'
+          className={`fixed bottom-6 right-6 z-[9999] flex items-center gap-3 px-4 py-3 rounded-2xl shadow-2xl text-xs font-semibold backdrop-blur-md transition-all duration-300 animate-in fade-in slide-in-from-bottom-3 ${toast.type === 'success'
             ? 'bg-green-600 text-white shadow-green-600/20'
             : toast.type === 'error'
               ? 'bg-red-600 text-white shadow-red-600/20'
@@ -768,7 +775,11 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
             variant="embedded"
             submitButtonText="Save Changes"
             isLoading={submitting}
-            onCancel={() => setIsEditModalOpen(false)}
+            alert={editError ? { type: 'error', message: editError } : null}
+            onCancel={() => {
+              setIsEditModalOpen(false)
+              setEditError(null)
+            }}
             onSubmit={handleUpdateGrievance}
             fields={[
               {
@@ -842,6 +853,8 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
               {
                 name: 'room_no_and_block_name',
                 label: 'Room No & Block',
+                placeholder: 'e.g. Room 304, Block B',
+                helperText: 'Mandatory if Bus No / Route is not specified',
                 type: 'text',
                 leftIcon: <Building className="w-4 h-4" />,
                 colSpan: 1,
@@ -849,6 +862,8 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
               {
                 name: 'bus_number',
                 label: 'Bus No / Route',
+                placeholder: 'e.g. Route 14 / KA-01-F-4421',
+                helperText: 'Mandatory if Room & Block is not specified',
                 type: 'text',
                 leftIcon: <Bus className="w-4 h-4" />,
                 colSpan: 1,
@@ -862,7 +877,10 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
               },
             ]}
             values={formData as unknown as Record<string, string>}
-            onChange={(name, value) => setFormData((prev) => ({ ...prev, [name]: value }))}
+            onChange={(name, value) => {
+              setFormData((prev) => ({ ...prev, [name]: value }))
+              if (editError) setEditError(null)
+            }}
           />
         </Modal>
       )}
