@@ -10,7 +10,7 @@ const normalize = (str?: string | null): string => {
 
 /**
  * Checks if a user's role-assigned permissions array contains a permission matching resource and action.
- * Strictly checks role_permissions from the database.
+ * Strictly distinguishes between full edits and status-only edits.
  */
 export const hasPermission = (
   permissions: PermissionRow[] | null | undefined,
@@ -31,35 +31,43 @@ export const hasPermission = (
       return true
     }
 
-    // Action synonyms if resource matches
     if (pResource === targetResource) {
+      // 1. View / Read
       if (
         (targetAction === 'view' || targetAction === 'read' || targetAction === 'select' || targetAction === 'view_all') &&
         (pAction === 'view' || pAction === 'read' || pAction === 'select' || pAction === 'view_all')
       ) {
         return true
       }
+
+      // 2. Add / Create / Insert
       if (
         (targetAction === 'add' || targetAction === 'create' || targetAction === 'insert') &&
         (pAction === 'add' || pAction === 'create' || pAction === 'insert')
       ) {
         return true
       }
+
+      // 3. Edit / Update whole record (strictly NOT status-only edits)
       if (
         (targetAction === 'edit' || targetAction === 'update') &&
         (pAction === 'edit' || pAction === 'update')
       ) {
         return true
       }
+
+      // 4. Delete / Remove
       if (
         (targetAction === 'delete' || targetAction === 'remove') &&
         (pAction === 'delete' || pAction === 'remove')
       ) {
         return true
       }
+
+      // 5. Status-only Edit
       if (
-        (targetAction === 'edit_status' || targetAction === 'update_status' || targetAction === 'edit' || targetAction === 'status') &&
-        (pAction === 'edit_status' || pAction === 'update_status' || pAction === 'status')
+        (targetAction === 'edit_status' || targetAction === 'update_status') &&
+        (pAction === 'edit_status' || pAction === 'update_status')
       ) {
         return true
       }
@@ -121,8 +129,9 @@ export const checkCanCreateGrievance = (
 }
 
 /**
- * Checks if user has permission to edit grievance details.
- * Matches: resource="grievances" action="edit", or name="Edit Grievances".
+ * Checks if user has permission to edit grievance details (entire record).
+ * Matches strictly: resource="grievances" action="edit", or name="Edit Grievances".
+ * Does NOT match status-only permission.
  */
 export const checkCanEditGrievance = (
   permissions: PermissionRow[] | null | undefined
@@ -143,8 +152,8 @@ export const checkCanEditStatus = (
   permissions: PermissionRow[] | null | undefined
 ): boolean => {
   return (
-    hasPermission(permissions, 'grievances', 'edit status') ||
     hasPermission(permissions, 'grievances', 'edit_status') ||
+    hasPermission(permissions, 'grievances', 'edit status') ||
     hasPermission(permissions, 'grievances', 'update_status') ||
     hasPermissionName(permissions, 'Edit Status Grievances') ||
     hasPermissionName(permissions, 'edit_status_grievances')
