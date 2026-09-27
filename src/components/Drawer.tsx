@@ -2,89 +2,14 @@ import React, { useEffect, useState } from 'react'
 import {
   X,
   Shield,
-  Home,
-  LayoutDashboard,
-  Inbox,
-  Settings,
-  Users,
-  User,
-  AlertCircle,
-  FileText,
-  BarChart,
-  BarChart2,
-  BarChart3,
-  Activity,
-  Clock,
-  HelpCircle,
-  Bell,
-  Layers,
-  MessageSquare,
-  ListTodo,
   LogOut,
   ChevronRight,
-  Folder,
-  type LucideIcon,
+  Layers,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
-
-interface RouteData {
-  name: string
-  path: string
-  icon: string
-  sort_order?: number
-}
-
-interface RoleRouteItem {
-  route_id: number | string
-  routes: RouteData | RouteData[] | null
-}
-
-interface DrawerProps {
-  isOpen: boolean
-  onClose: () => void
-  currentPath?: string
-  onNavigate?: (path: string) => void
-}
-
-// Icon dictionary mapping database icon keys to Lucide icons
-const iconMap: Record<string, LucideIcon> = {
-  home: Home,
-  dashboard: LayoutDashboard,
-  'layout-dashboard': LayoutDashboard,
-  inbox: Inbox,
-  settings: Settings,
-  users: Users,
-  user: User,
-  shield: Shield,
-  alert: AlertCircle,
-  'alert-circle': AlertCircle,
-  file: FileText,
-  'file-text': FileText,
-  files: Folder,
-  folder: Folder,
-  report: BarChart3,
-  reports: BarChart3,
-  analytics: BarChart2,
-  charts: BarChart,
-  activity: Activity,
-  clock: Clock,
-  history: Clock,
-  help: HelpCircle,
-  'help-circle': HelpCircle,
-  bell: Bell,
-  notifications: Bell,
-  messages: MessageSquare,
-  complaints: Inbox,
-  grievances: Inbox,
-  tasks: ListTodo,
-}
-
-const resolveIcon = (iconName?: string): LucideIcon => {
-  if (!iconName) return Layers
-  const key = iconName.toLowerCase().trim().replace(/_/g, '-')
-  return iconMap[key] || Layers
-}
+import { resolveIcon } from '../utils'
+import type { RouteData, RoleRouteItem, DrawerProps } from '../types'
 
 export const Drawer: React.FC<DrawerProps> = ({
   isOpen,
@@ -112,8 +37,10 @@ export const Drawer: React.FC<DrawerProps> = ({
 
       try {
         setLoading(true)
+        console.group('[Drawer] 🚀 Initializing Navigation Routes')
+        console.log('[Drawer] Authenticated User:', { uid: user.uid, email: user.email })
 
-        // 1. Fetch user profile for role
+        // 1. Fetch user profile for assigned role
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('firebase_uid, role')
@@ -121,57 +48,78 @@ export const Drawer: React.FC<DrawerProps> = ({
           .maybeSingle()
 
         if (profileError) {
-          console.error('[Drawer] Profile fetch error:', profileError)
-          if (isMounted) {
-            setRole(null)
-            setRoutes([])
-            setLoading(false)
-          }
-          return
+          console.warn('[Drawer] Profiles table query error:', profileError.message)
+        } else {
+          console.log('[Drawer] Profiles table query result:', profile)
         }
 
-        if (!profile?.role) {
-          console.warn('[Drawer] No role assigned to user:', user.uid)
-          if (isMounted) {
-            setRole(null)
-            setRoutes([])
-            setLoading(false)
-          }
-          return
+        const userRole = profile?.role || null
+        if (isMounted) {
+          setRole(userRole)
         }
+
+        let resolvedRoutes: RouteData[] = []
+
+        // 2. If user has a role, query role_routes
+        if (userRole) {
+          console.log(`[Drawer] Querying role_routes for role: "${userRole}"...`)
+          const { data: roleRoutes, error: routesError } = await supabase
+            .from('role_routes')
+            .select(`
+              route_id,
+              role,
+              routes (
+                id,
+                name,
+                path,
+                icon,
+                sort_order
+              )
+            `)
+            .ilike('role', userRole)
+
+          if (routesError) {
+            console.warn('[Drawer] role_routes query error:', routesError.message)
+          } else {
+            console.log('[Drawer] role_routes query result:', roleRoutes)
+            if (roleRoutes && roleRoutes.length > 0) {
+              const parsed = (roleRoutes as unknown as RoleRouteItem[])
+                .map((item) => (Array.isArray(item.routes) ? item.routes[0] : item.routes))
+                .filter((r): r is RouteData => r !== null && typeof r === 'object')
+                .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+
+              resolvedRoutes = parsed
+            }
+          }
+        }
+
+        // 3. Fallback: If no role-specific routes found, query all active routes from the `routes` table
+        if (resolvedRoutes.length === 0) {
+          console.log('[Drawer] No role-specific routes matched. Fetching from `routes` table directly...')
+          const { data: allRoutesData, error: allRoutesErr } = await supabase
+            .from('routes')
+            .select('id, name, path, icon, sort_order')
+            .order('sort_order', { ascending: true })
+
+          if (allRoutesErr) {
+            console.error('[Drawer] Error querying `routes` table:', allRoutesErr.message)
+          } else {
+            console.log('[Drawer] `routes` table query result:', allRoutesData)
+            if (allRoutesData && allRoutesData.length > 0) {
+              resolvedRoutes = allRoutesData as RouteData[]
+            }
+          }
+        }
+
+        console.log('[Drawer] Final resolved routes to display:', resolvedRoutes)
+        console.groupEnd()
 
         if (isMounted) {
-          setRole(profile.role)
-        }
-
-        // 2. Fetch role routes
-        const { data: roleRoutes, error: routesError } = await supabase
-          .from('role_routes')
-          .select(`
-            route_id,
-            routes (
-              name,
-              path,
-              icon,
-              sort_order
-            )
-          `)
-          .eq('role', profile.role)
-          .order('sort_order', { referencedTable: 'routes', ascending: true })
-
-        if (routesError) {
-          console.error('[Drawer] Routes fetch error:', routesError)
-          if (isMounted) setRoutes([])
-        } else if (roleRoutes && isMounted) {
-          // Normalize routes array
-          const parsedRoutes: RouteData[] = (roleRoutes as unknown as RoleRouteItem[])
-            .map((item) => (Array.isArray(item.routes) ? item.routes[0] : item.routes))
-            .filter((r): r is RouteData => r !== null && typeof r === 'object')
-
-          setRoutes(parsedRoutes)
+          setRoutes(resolvedRoutes)
         }
       } catch (err) {
         console.error('[Drawer] Unexpected error loading navigation:', err)
+        console.groupEnd()
       } finally {
         if (isMounted) {
           setLoading(false)

@@ -1,0 +1,62 @@
+import {
+  Home,
+  LayoutDashboard,
+  Inbox,
+  Settings,
+  Users,
+  User,
+  Shield,
+  AlertCircle,
+  FileText,
+  BarChart,
+  BarChart2,
+  BarChart3,
+  Activity,
+  Clock,
+  HelpCircle,
+  Bell,
+  Layers,
+  MessageSquare,
+  ListTodo,
+  Folder,
+  type LucideIcon,
+} from 'lucide-react'
+
+// Icon dictionary mapping database icon strings to Lucide icon components
+export const iconMap: Record<string, LucideIcon> = {
+  home: Home,
+  dashboard: LayoutDashboard,
+  'layout-dashboard': LayoutDashboard,
+  inbox: Inbox,
+  settings: Settings,
+  users: Users,
+  user: User,
+  shield: Shield,
+  alert: AlertCircle,
+  'alert-circle': AlertCircle,
+  file: FileText,
+  'file-text': FileText,
+  files: Folder,
+  folder: Folder,
+  report: BarChart3,
+  reports: BarChart3,
+  analytics: BarChart2,
+  charts: BarChart,
+  activity: Activity,
+  clock: Clock,
+  history: Clock,
+  help: HelpCircle,
+  'help-circle': HelpCircle,
+  bell: Bell,
+  notifications: Bell,
+  messages: MessageSquare,
+  complaints: Inbox,
+  grievances: Inbox,
+  tasks: ListTodo,
+}
+
+export const resolveIcon = (iconName?: string | null): LucideIcon => {
+  if (!iconName) return Layers
+  const key = iconName.toLowerCase().trim().replace(/_/g, '-')
+  return iconMap[key] || Layers
+}

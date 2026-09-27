@@ -4,16 +4,30 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import { Login } from './pages/Login'
 import { ForgotPassword } from './pages/ForgotPassword'
 import { Home } from './pages/Home'
-
-interface MainRouterProps {
-  isDark: boolean
-  onToggleTheme: () => void
-}
+import { BlockCoordinators } from './pages/BlockCoordinators'
+import { GrievancePage } from './pages/GrievancePage'
+import type { MainRouterProps } from './types'
 
 function MainRouter({ isDark, onToggleTheme }: MainRouterProps) {
   const { user, loading } = useAuth()
   const [authView, setAuthView] = useState<'login' | 'forgot-password'>('login')
   const [resetEmail, setResetEmail] = useState('')
+  const [currentPath, setCurrentPath] = useState<string>(() => window.location.pathname || '/')
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentPath(window.location.pathname || '/')
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
+
+  const handleNavigate = (path: string) => {
+    if (window.location.pathname !== path) {
+      window.history.pushState({}, '', path)
+    }
+    setCurrentPath(path)
+  }
 
   if (loading) {
     return (
@@ -56,7 +70,46 @@ function MainRouter({ isDark, onToggleTheme }: MainRouterProps) {
     )
   }
 
-  return <Home isDark={isDark} onToggleTheme={onToggleTheme} />
+  if (
+    currentPath === '/grievances' ||
+    currentPath === '/grievance' ||
+    currentPath === '/complaints' ||
+    currentPath.startsWith('/grievances') ||
+    currentPath.startsWith('/grievance')
+  ) {
+    return (
+      <GrievancePage
+        isDark={isDark}
+        onToggleTheme={onToggleTheme}
+        currentPath={currentPath}
+        onNavigate={handleNavigate}
+      />
+    )
+  }
+
+  if (
+    currentPath === '/block_coordinators' ||
+    currentPath === '/block-coordinators' ||
+    currentPath.startsWith('/block_coordinators')
+  ) {
+    return (
+      <BlockCoordinators
+        isDark={isDark}
+        onToggleTheme={onToggleTheme}
+        currentPath={currentPath}
+        onNavigate={handleNavigate}
+      />
+    )
+  }
+
+  return (
+    <Home
+      isDark={isDark}
+      onToggleTheme={onToggleTheme}
+      currentPath={currentPath}
+      onNavigate={handleNavigate}
+    />
+  )
 }
 
 export function App() {
