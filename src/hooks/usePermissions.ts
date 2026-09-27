@@ -12,7 +12,6 @@ import {
   checkCanManageCoordinators,
   checkCanViewCoordinators,
   checkCanCreateCoordinator,
-  checkCanAddCoordinator,
   checkCanEditCoordinator,
   checkCanDeleteCoordinator,
   isAdminOrSuperAdmin,
@@ -62,7 +61,7 @@ export function usePermissions(): UserPermissionsState {
     try {
       setLoading(true)
 
-      // 1. Fetch all records directly from the `permissions` table in the database
+      // 1. Fetch all records directly from the `permissions` table
       const { data: allPermsData, error: permsError } = await supabase
         .from('permissions')
         .select('*')
@@ -70,14 +69,12 @@ export function usePermissions(): UserPermissionsState {
 
       if (permsError) {
         console.error('[Permissions] Error fetching permissions from DB:', permsError)
-      } else {
-        console.log('[Permissions] permissions table rows fetched from DB:', allPermsData?.length)
       }
 
       const availablePerms: PermissionRow[] = allPermsData || []
       setAllPermissions(availablePerms)
 
-      // 2. Fetch user's assigned role from `profiles` table in database
+      // 2. Fetch user's assigned role from `profiles`
       let userRole: string | null = null
 
       const { data: profileByUid, error: uidError } = await supabase
@@ -104,7 +101,7 @@ export function usePermissions(): UserPermissionsState {
         }
       }
 
-      console.log('[Permissions] Authenticated User UID:', user.uid, '| DB Resolved Role:', userRole)
+      console.log('[Permissions] Authenticated User UID:', user.uid, '| DB Role:', userRole)
       setRole(userRole)
 
       if (!userRole) {
@@ -114,14 +111,14 @@ export function usePermissions(): UserPermissionsState {
 
       const cleanRole = userRole.trim().toLowerCase()
 
-      // If user is super_admin, grant ALL permissions available from database
+      // If user is super_admin, grant ALL permissions
       if (isSuperAdmin(cleanRole)) {
-        console.log('[Permissions] super_admin detected: Granting all backend database permissions.')
+        console.log('[Permissions] super_admin detected: granting all permissions')
         setPermissions(availablePerms)
         return
       }
 
-      // 3. For all other roles: Find matching role in `roles` table
+      // 3. Find matching role from `roles` table
       const { data: allRoles, error: rolesError } = await supabase
         .from('roles')
         .select('id, name')
@@ -144,7 +141,7 @@ export function usePermissions(): UserPermissionsState {
         return
       }
 
-      // 4. Query role_permissions for this roleId from database (with joined permissions)
+      // 4. Query role_permissions with joined permissions
       const { data: rpData, error: rpError } = await supabase
         .from('role_permissions')
         .select(`
@@ -173,9 +170,7 @@ export function usePermissions(): UserPermissionsState {
           .filter((p: any): p is PermissionRow => p !== null && typeof p === 'object' && Boolean(p.name))
       }
 
-      console.log('[Permissions] Granted DB Permission IDs for', cleanRole, ':', grantedPermissionIds)
-
-      // 5. Resolve permissions from DB
+      // 5. Match against available permissions
       let matchedPerms: PermissionRow[] = []
 
       if (joinedPerms.length > 0) {
@@ -185,10 +180,10 @@ export function usePermissions(): UserPermissionsState {
         matchedPerms = availablePerms.filter((p) => grantedSet.has(String(p.id).trim()))
       }
 
-      console.log('[Permissions] DB Active Permissions for', cleanRole, ':', matchedPerms.map((p) => p.name))
+      console.log('[Permissions] Active DB Permissions for', cleanRole, ':', matchedPerms.map((p) => p.name))
       setPermissions(matchedPerms)
     } catch (err) {
-      console.error('[Permissions] Error resolving user permissions from backend:', err)
+      console.error('[Permissions] Error resolving user permissions:', err)
       setPermissions([])
     } finally {
       setLoading(false)
@@ -199,14 +194,13 @@ export function usePermissions(): UserPermissionsState {
     fetchPermissions()
   }, [user])
 
-  // Bound helper functions delegating to src/utils/permissions
+  // Helper functions delegating to src/utils/permissions
   const hasPermission = (resource: string, action: string): boolean =>
     checkPermission(permissions, resource, action)
 
   const hasPermissionName = (name: string): boolean =>
     checkPermissionName(permissions, name)
 
-  // Derived capabilities evaluated purely from the database permissions array (or super_admin root)
   const isSuper = isSuperAdmin(role)
   const isSuperOrAdmin = isAdminOrSuperAdmin(role)
 
@@ -221,16 +215,6 @@ export function usePermissions(): UserPermissionsState {
   const canAddCoordinator = canCreateCoordinator
   const canEditCoordinator = isSuper || checkCanEditCoordinator(permissions)
   const canDeleteCoordinator = isSuper || checkCanDeleteCoordinator(permissions)
-
-  console.log('[Permissions Evaluated]', {
-    role,
-    isSuperAdmin: isSuper,
-    canViewCoordinators,
-    canAddCoordinator,
-    canEditCoordinator,
-    canDeleteCoordinator,
-    activePermissions: permissions.map((p) => p.name),
-  })
 
   return {
     role,
