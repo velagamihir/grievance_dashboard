@@ -109,11 +109,11 @@ export const ListItem: React.FC<ListItemProps> = ({
   const isClickable = Boolean(onClick || href) && !disabled
 
   const content = (
-    <div className="flex items-center justify-between w-full min-w-0 gap-3">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between w-full min-w-0 gap-3 sm:gap-4">
       {/* Left side: Leading icon/avatar + Content */}
-      <div className="flex items-center gap-3.5 min-w-0 flex-1">
+      <div className="flex items-start sm:items-center gap-3 sm:gap-3.5 min-w-0 flex-1">
         {leading && (
-          <div className="shrink-0 flex items-center justify-center">
+          <div className="shrink-0 flex items-center justify-center mt-0.5 sm:mt-0">
             {leading}
           </div>
         )}
@@ -146,10 +146,10 @@ export const ListItem: React.FC<ListItemProps> = ({
         </div>
       </div>
 
-      {/* Right side: Trailing content (actions, buttons, chevrons) */}
+      {/* Right side: Trailing content (actions, buttons, dropdowns) */}
       {trailing && (
         <div
-          className="shrink-0 flex items-center gap-2"
+          className="shrink-0 flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto pt-2.5 sm:pt-0 border-t sm:border-t-0 border-gray/10 dark:border-gray/10/40"
           onClick={(e) => {
             // Prevent container click when clicking interactive elements in trailing
             if (isClickable) e.stopPropagation()
@@ -277,7 +277,7 @@ export const ListFilter: React.FC<ListFilterProps> = ({
 }) => {
   return (
     <div
-      className={`inline-flex flex-wrap items-center gap-1 bg-offwhite dark:bg-[#151726] p-1 rounded-2xl border border-gray/20 text-xs ${className}`}
+      className={`inline-flex items-center gap-1 bg-offwhite dark:bg-[#151726] p-1 rounded-2xl border border-gray/20 text-xs max-w-full overflow-x-auto ${className}`}
     >
       {options.map((opt) => {
         const value = typeof opt === 'string' ? opt : opt.value
@@ -290,12 +290,12 @@ export const ListFilter: React.FC<ListFilterProps> = ({
             key={value}
             type="button"
             onClick={() => onSelect(value)}
-            className={`px-3 py-1.5 rounded-xl font-medium transition-all duration-150 flex items-center gap-1.5 focus:outline-none ${isSelected
+            className={`px-3 py-1.5 rounded-xl font-medium transition-all duration-150 flex items-center gap-1.5 shrink-0 focus:outline-none cursor-pointer ${isSelected
               ? 'bg-darkblue text-offwhite dark:bg-orange dark:text-darkblue shadow-xs font-semibold'
               : 'text-gray hover:text-darkblue dark:hover:text-offwhite hover:bg-gray/10 dark:hover:bg-gray/20'
               }`}
           >
-            <span>{label}</span>
+            <span className="whitespace-nowrap">{label}</span>
             {count !== undefined && (
               <span
                 className={`px-1.5 py-0.2 rounded-full text-[10px] ${isSelected
@@ -339,10 +339,10 @@ export const ListPagination: React.FC<ListPaginationProps> = ({
 
   return (
     <div
-      className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-gray/15 text-xs text-gray ${className}`}
+      className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 pt-4 border-t border-gray/15 text-xs text-gray ${className}`}
     >
       {/* Items Count Summary */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center justify-between sm:justify-start gap-2 sm:gap-3 w-full sm:w-auto">
         {totalItems !== undefined && startItem !== undefined && endItem !== undefined ? (
           <span>
             Showing <strong className="text-darkblue dark:text-offwhite">{startItem}</strong> -{' '}
@@ -358,7 +358,7 @@ export const ListPagination: React.FC<ListPaginationProps> = ({
 
         {/* Page Size Selector */}
         {onPageSizeChange && pageSize && (
-          <div className="flex items-center gap-1.5 ml-2">
+          <div className="flex items-center gap-1.5 sm:ml-2">
             <span>Per page:</span>
             <select
               value={pageSize}
@@ -376,7 +376,7 @@ export const ListPagination: React.FC<ListPaginationProps> = ({
       </div>
 
       {/* Pagination Controls */}
-      <div className="flex items-center gap-1.5 self-end sm:self-auto">
+      <div className="flex items-center justify-center sm:justify-end gap-1.5 flex-wrap w-full sm:w-auto">
         <Button
           variant="outline"
           size="sm"
@@ -414,7 +414,7 @@ export const ListPagination: React.FC<ListPaginationProps> = ({
                 variant={isCurrent ? 'primary' : 'outline'}
                 size="sm"
                 onClick={() => onPageChange(pageNum)}
-                className={isCurrent ? 'font-bold' : ''}
+                className={isCurrent ? 'font-bold min-w-[32px] px-2.5' : 'min-w-[32px] px-2.5'}
               >
                 {pageNum}
               </Button>
@@ -457,10 +457,10 @@ export const ListHeader: React.FC<ListHeaderProps> = ({
       className={`flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-gray/15 ${className}`}
     >
       {/* Title & Count */}
-      <div className="space-y-0.5">
-        <div className="flex items-center gap-2.5">
+      <div className="space-y-0.5 min-w-0">
+        <div className="flex items-center gap-2.5 flex-wrap">
           {title && (
-            <h3 className="text-xl font-bold text-darkblue dark:text-offwhite leading-tight">
+            <h3 className="text-lg sm:text-xl font-bold text-darkblue dark:text-offwhite leading-tight truncate">
               {title}
             </h3>
           )}
@@ -476,9 +476,9 @@ export const ListHeader: React.FC<ListHeaderProps> = ({
       </div>
 
       {/* Interactive Controls (Search, Filters, Actions) */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full md:w-auto">
         {onSearchChange && (
-          <div className="relative min-w-[200px] sm:min-w-[240px]">
+          <div className="relative w-full sm:w-auto flex-1 sm:max-w-xs sm:min-w-[220px]">
             <TextInput
               size="sm"
               placeholder={searchPlaceholder}
@@ -508,7 +508,7 @@ export const ListHeader: React.FC<ListHeaderProps> = ({
           />
         )}
 
-        {actions && <div className="flex items-center gap-2">{actions}</div>}
+        {actions && <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end">{actions}</div>}
       </div>
     </div>
   )

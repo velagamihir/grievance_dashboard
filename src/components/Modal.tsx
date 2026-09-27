@@ -74,27 +74,27 @@ export const Modal: React.FC<ModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-darkblue/50 dark:bg-black/70 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-darkblue/50 dark:bg-black/70 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150"
       onClick={closeOnOverlayClick ? onClose : undefined}
       role="dialog"
       aria-modal="true"
     >
       <div
-        className={`relative w-full ${sizeClasses[size]} bg-white dark:bg-[#1a1d2e] rounded-3xl border border-gray/20 shadow-2xl p-6 sm:p-7 space-y-5 my-8 max-h-[90vh] flex flex-col transition-all duration-200 transform scale-100 ${className}`}
+        className={`relative w-full ${sizeClasses[size]} bg-white dark:bg-[#1a1d2e] rounded-2xl sm:rounded-3xl border border-gray/20 shadow-2xl p-4 sm:p-6 md:p-7 space-y-4 sm:space-y-5 my-auto max-h-[92vh] sm:max-h-[90vh] flex flex-col transition-all duration-200 transform scale-100 ${className}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         {(title || showCloseButton) && (
           <div className="flex items-center justify-between pb-3.5 border-b border-gray/15 shrink-0">
-            <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
               {icon && (
-                <div className={`p-2.5 rounded-2xl shrink-0 ${iconBgColor}`}>
+                <div className={`p-2 sm:p-2.5 rounded-xl sm:rounded-2xl shrink-0 ${iconBgColor}`}>
                   {icon}
                 </div>
               )}
               <div className="min-w-0">
                 {title && (
-                  <h3 className="font-bold text-lg text-darkblue dark:text-offwhite leading-snug truncate">
+                  <h3 className="font-bold text-base sm:text-lg text-darkblue dark:text-offwhite leading-snug truncate">
                     {title}
                   </h3>
                 )}
@@ -108,7 +108,7 @@ export const Modal: React.FC<ModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="p-1.5 rounded-xl text-gray hover:text-darkblue dark:hover:text-offwhite hover:bg-gray/10 dark:hover:bg-gray/20 transition-colors shrink-0 ml-2 focus:outline-none"
+                className="p-1.5 rounded-xl text-gray hover:text-darkblue dark:hover:text-offwhite hover:bg-gray/10 dark:hover:bg-gray/20 transition-colors shrink-0 ml-2 focus:outline-none cursor-pointer"
                 aria-label="Close dialog"
               >
                 <X className="w-5 h-5" />
@@ -119,20 +119,20 @@ export const Modal: React.FC<ModalProps> = ({
 
         {/* Error Alert */}
         {error && (
-          <div className="p-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-xs text-red-600 dark:text-red-400 flex items-center gap-2 shrink-0">
+          <div className="p-3 sm:p-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-xs text-red-600 dark:text-red-400 flex items-center gap-2 shrink-0">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {/* Content Body */}
-        <div className={`overflow-y-auto flex-1 ${bodyClassName}`}>
+        <div className={`overflow-y-auto flex-1 pr-0.5 ${bodyClassName}`}>
           {children}
         </div>
 
         {/* Footer */}
         {footer && (
-          <div className="pt-3 border-t border-gray/15 shrink-0 flex items-center justify-end gap-3">
+          <div className="pt-3 border-t border-gray/15 shrink-0 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3">
             {footer}
           </div>
         )}
@@ -230,20 +230,21 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
           </div>
         )}
 
-        <div className="flex items-center justify-end gap-3 pt-2">
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 pt-2">
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={onClose}
             disabled={isLoading}
+            className="w-full sm:w-auto"
           >
             {cancelText}
           </Button>
           <Button
             type="button"
             size="sm"
-            className={currentVariant.btnClass}
+            className={`${currentVariant.btnClass} w-full sm:w-auto`}
             onClick={onConfirm}
             isLoading={isLoading}
           >

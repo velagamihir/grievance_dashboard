@@ -301,23 +301,23 @@ export const BlockCoordinators = ({
       />
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-6 sm:space-y-8">
         {/* Banner */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-darkblue via-[#38417c] to-lightblue p-6 sm:p-8 text-offwhite shadow-xl shadow-darkblue/10">
+        <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-darkblue via-[#38417c] to-lightblue p-5 sm:p-8 text-offwhite shadow-xl shadow-darkblue/10">
           <div className="relative z-10 max-w-2xl space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 text-xs font-semibold backdrop-blur-xs">
               <MapPin className="w-3.5 h-3.5 text-orange" />
               Field Administration Directory
             </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight">
               Block &amp; Ward Coordinators
             </h2>
-            <p className="text-sm sm:text-base text-offwhite/85">
+            <p className="text-xs sm:text-sm md:text-base text-offwhite/85">
               Live coordinator contacts and jurisdiction assignments fetched directly from the database.
             </p>
           </div>
 
-          <div className="absolute right-0 bottom-0 opacity-10 pointer-events-none transform translate-x-8 translate-y-8">
+          <div className="hidden sm:block absolute right-0 bottom-0 opacity-10 pointer-events-none transform translate-x-8 translate-y-8">
             <Users className="w-64 h-64 text-white" />
           </div>
         </div>
@@ -329,7 +329,7 @@ export const BlockCoordinators = ({
             return (
               <div
                 key={item.title}
-                className="bg-white dark:bg-[#20243a] p-6 rounded-3xl border border-gray/20 shadow-sm hover:shadow-md transition-shadow space-y-3"
+                className="bg-white dark:bg-[#20243a] p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-gray/20 shadow-sm hover:shadow-md transition-shadow space-y-3"
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-gray uppercase tracking-wider">
@@ -340,7 +340,7 @@ export const BlockCoordinators = ({
                   </div>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold text-darkblue dark:text-offwhite">
+                  <div className="text-2xl sm:text-3xl font-bold text-darkblue dark:text-offwhite">
                     {loading ? '...' : item.count}
                   </div>
                   <p className="text-xs text-gray mt-1">{item.change}</p>
@@ -351,7 +351,7 @@ export const BlockCoordinators = ({
         </div>
 
         {/* Coordinators Directory using List component */}
-        <div className="bg-white dark:bg-[#20243a] rounded-3xl border border-gray/20 shadow-sm p-6 sm:p-8">
+        <div className="bg-white dark:bg-[#20243a] rounded-2xl sm:rounded-3xl border border-gray/20 shadow-sm p-4 sm:p-6 md:p-8">
           <List<BlockCoordinatorRow>
             items={coordinators}
             isLoading={loading || permissionsLoading}
@@ -371,7 +371,7 @@ export const BlockCoordinators = ({
                 : 'No coordinator records match your search query.'
             }
             headerActions={
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap justify-end">
                 <Button
                   variant="outline"
                   size="sm"
@@ -389,7 +389,8 @@ export const BlockCoordinators = ({
                     onClick={() => setIsAddModalOpen(true)}
                     leftIcon={<Plus className="w-4 h-4" />}
                   >
-                    Add Coordinator
+                    <span className="hidden xs:inline">Add Coordinator</span>
+                    <span className="xs:hidden">Add</span>
                   </Button>
                 )}
               </div>
@@ -402,7 +403,7 @@ export const BlockCoordinators = ({
                   size="lg"
                   variant="flush"
                   leading={
-                    <div className="w-11 h-11 rounded-2xl bg-lightblue/20 text-lightblue dark:bg-orange/20 dark:text-orange flex items-center justify-center font-bold text-sm uppercase shadow-xs">
+                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-lightblue/20 text-lightblue dark:bg-orange/20 dark:text-orange flex items-center justify-center font-bold text-sm uppercase shadow-xs">
                       {(c.name || 'C').charAt(0)}
                     </div>
                   }
@@ -441,7 +442,7 @@ export const BlockCoordinators = ({
                           <button
                             type="button"
                             onClick={() => handleOpenEdit(c)}
-                            className="p-2 rounded-xl text-gray hover:text-lightblue hover:bg-lightblue/10 transition-colors"
+                            className="p-2 rounded-xl text-gray hover:text-lightblue hover:bg-lightblue/10 transition-colors cursor-pointer"
                             title="Edit Coordinator"
                             aria-label={`Edit ${c.name}`}
                           >
@@ -452,7 +453,7 @@ export const BlockCoordinators = ({
                           <button
                             type="button"
                             onClick={() => handleOpenDelete(c)}
-                            className="p-2 rounded-xl text-gray hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                            className="p-2 rounded-xl text-gray hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
                             title="Delete Coordinator"
                             aria-label={`Delete ${c.name}`}
                           >
@@ -510,13 +511,14 @@ export const BlockCoordinators = ({
             }
           />
 
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray/15">
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 pt-3 border-t border-gray/15">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => setIsAddModalOpen(false)}
               disabled={isSubmitting}
+              className="w-full sm:w-auto"
             >
               Cancel
             </Button>
@@ -525,6 +527,7 @@ export const BlockCoordinators = ({
               variant="primary"
               size="sm"
               isLoading={isSubmitting}
+              className="w-full sm:w-auto"
             >
               Save Coordinator
             </Button>
@@ -576,7 +579,7 @@ export const BlockCoordinators = ({
             }
           />
 
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray/15">
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 pt-3 border-t border-gray/15">
             <Button
               type="button"
               variant="outline"
@@ -586,6 +589,7 @@ export const BlockCoordinators = ({
                 setEditingTarget(null)
               }}
               disabled={isEditing}
+              className="w-full sm:w-auto"
             >
               Cancel
             </Button>
@@ -594,6 +598,7 @@ export const BlockCoordinators = ({
               variant="primary"
               size="sm"
               isLoading={isEditing}
+              className="w-full sm:w-auto"
             >
               Update Coordinator
             </Button>

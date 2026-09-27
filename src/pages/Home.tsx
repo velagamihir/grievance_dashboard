@@ -97,35 +97,35 @@ export const Home = ({
       />
 
       {/* Main Dashboard Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-6 sm:space-y-8">
         {/* Welcome Banner */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-darkblue via-[#4a5494] to-lightblue p-6 sm:p-8 text-offwhite shadow-xl shadow-darkblue/10">
+        <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-darkblue via-[#4a5494] to-lightblue p-5 sm:p-8 text-offwhite shadow-xl shadow-darkblue/10">
           <div className="relative z-10 max-w-2xl space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 text-xs font-semibold backdrop-blur-xs">
               <TrendingUp className="w-3.5 h-3.5 text-orange" />
               Real-time Grievance Analytics
             </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight">
               Welcome back, {userDisplayName}
             </h2>
-            <p className="text-sm sm:text-base text-offwhite/85">
+            <p className="text-xs sm:text-sm md:text-base text-offwhite/85">
               Live overview of active grievances, resolution status, and logged complaints queried directly from the database.
             </p>
           </div>
 
-          <div className="absolute right-0 bottom-0 opacity-10 pointer-events-none transform translate-x-8 translate-y-8">
+          <div className="hidden sm:block absolute right-0 bottom-0 opacity-10 pointer-events-none transform translate-x-8 translate-y-8">
             <Inbox className="w-64 h-64 text-white" />
           </div>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-5">
           {stats.map((item) => {
             const Icon = item.icon
             return (
               <div
                 key={item.title}
-                className="bg-white dark:bg-[#20243a] p-6 rounded-3xl border border-gray/20 shadow-sm hover:shadow-md transition-shadow space-y-3"
+                className="bg-white dark:bg-[#20243a] p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-gray/20 shadow-sm hover:shadow-md transition-shadow space-y-3"
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-gray uppercase tracking-wider">
@@ -136,7 +136,7 @@ export const Home = ({
                   </div>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold text-darkblue dark:text-offwhite">
+                  <div className="text-2xl sm:text-3xl font-bold text-darkblue dark:text-offwhite">
                     {loading ? '...' : item.count}
                   </div>
                   <p className="text-xs text-gray mt-1">{item.change}</p>
@@ -147,10 +147,10 @@ export const Home = ({
         </div>
 
         {/* Grievance Management Section */}
-        <div className="bg-white dark:bg-[#20243a] rounded-3xl border border-gray/20 shadow-sm p-6 sm:p-8 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="bg-white dark:bg-[#20243a] rounded-2xl sm:rounded-3xl border border-gray/20 shadow-sm p-4 sm:p-6 md:p-8 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
             <div>
-              <h3 className="text-xl font-bold text-darkblue dark:text-offwhite">
+              <h3 className="text-lg sm:text-xl font-bold text-darkblue dark:text-offwhite">
                 Recent Grievances
               </h3>
               <p className="text-xs sm:text-sm text-gray mt-0.5">
@@ -158,7 +158,7 @@ export const Home = ({
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 self-end sm:self-auto">
               <Button
                 variant="outline"
                 size="sm"
@@ -179,8 +179,8 @@ export const Home = ({
           </div>
 
           {/* Grievance Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm border-collapse">
+          <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+            <table className="w-full text-left text-sm border-collapse min-w-[620px]">
               <thead>
                 <tr className="border-b border-gray/20 text-xs font-semibold text-gray uppercase tracking-wider">
                   <th className="pb-3 pl-2">ID</th>
