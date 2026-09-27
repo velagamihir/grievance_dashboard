@@ -1,28 +1,30 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
-  Menu,
-  Sun,
-  Moon,
-  LogOut,
   Users,
   MapPin,
   Phone,
-  Search,
-  CheckCircle2,
-  AlertCircle,
-  User as UserIcon,
-  RefreshCw,
   Plus,
-  X,
+  Pencil,
+  Trash2,
+  RefreshCw,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { supabase } from '../lib/supabase'
-import { Button } from '../components/Buttons'
-import { Drawer } from '../components/Drawer'
-import { TextInput } from '../components/TextInput'
-import type { BlockCoordinatorsProps, BlockCoordinatorRow, CoordinatorStatItem, FormResponseRow } from '../types'
+import {
+  Button,
+  Drawer,
+  TextInput,
+  Header,
+  List,
+  ListItem,
+  ListBadge,
+  Modal,
+  ConfirmModal,
+} from '../components'
+import { calculateCoordinatorStats, getCoordinatorCases } from '../utils'
+import type { BlockCoordinatorsProps, BlockCoordinatorRow, FormResponseRow } from '../types'
 
 export const BlockCoordinators = ({
   isDark,
@@ -32,7 +34,15 @@ export const BlockCoordinators = ({
 }: BlockCoordinatorsProps) => {
   useDocumentTitle('Block Coordinators | Grievance Portal')
   const { user, signOutUser } = useAuth()
-  const { canViewCoordinators, canManageCoordinators, loading: permissionsLoading } = usePermissions()
+  const {
+    role,
+    canViewCoordinators,
+    canAddCoordinator,
+    canEditCoordinator,
+    canDeleteCoordinator,
+    loading: permissionsLoading,
+  } = usePermissions()
+
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [coordinators, setCoordinators] = useState<BlockCoordinatorRow[]>([])
@@ -48,6 +58,23 @@ export const BlockCoordinators = ({
     phone_no: '',
   })
   const [formError, setFormError] = useState<string | null>(null)
+
+  // Edit coordinator modal state
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editFormError, setEditFormError] = useState<string | null>(null)
+  const [editingTarget, setEditingTarget] = useState<BlockCoordinatorRow | null>(null)
+  const [editForm, setEditForm] = useState({
+    name: '',
+    block: '',
+    phone_no: '',
+  })
+
+  // Delete coordinator modal state
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [deletingTarget, setDeletingTarget] = useState<BlockCoordinatorRow | null>(null)
 
   const fetchData = async () => {
     if (!canViewCoordinators) {
@@ -65,17 +92,20 @@ export const BlockCoordinators = ({
       ])
 
       if (coordRes.error) {
+        console.error('Error fetching coordinators:', coordRes.error)
         setCoordinators([])
       } else {
         setCoordinators(coordRes.data || [])
       }
 
       if (grvRes.error) {
+        console.error('Error fetching grievances:', grvRes.error)
         setGrievances([])
       } else {
         setGrievances(grvRes.data || [])
       }
-    } catch {
+    } catch (err) {
+      console.error('Error in fetchData:', err)
       setCoordinators([])
       setGrievances([])
     } finally {
@@ -97,8 +127,8 @@ export const BlockCoordinators = ({
 
   const handleAddCoordinator = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!canManageCoordinators) {
-      setFormError('Permission Denied: You do not have permission to manage coordinators.')
+    if (!canAddCoordinator) {
+      setFormError('Permission Denied: You do not have permission to add coordinators.')
       return
     }
     if (!newCoordinator.name.trim() || !newCoordinator.block.trim()) {
@@ -139,76 +169,107 @@ export const BlockCoordinators = ({
     }
   }
 
-  // Dynamic calculations from live DB data
-  const totalCoordinators = coordinators.length
-  const uniqueBlocksCount = new Set(
-    coordinators.map((c) => (c.block || '').trim()).filter(Boolean)
-  ).size
-  const activeCasesCount = grievances.filter((g) => {
-    const s = (g.status || '').toLowerCase()
-    return s === 'pending' || s === 'in progress' || s === 'under review'
-  }).length
-  const resolvedCasesCount = grievances.filter(
-    (g) => (g.status || '').toLowerCase() === 'resolved'
-  ).length
-
-  const stats: CoordinatorStatItem[] = [
-    {
-      title: 'Total Coordinators',
-      count: totalCoordinators.toString(),
-      change: `${uniqueBlocksCount} unique blocks covered`,
-      icon: Users,
-      color: 'bg-lightblue/15 text-lightblue dark:bg-lightblue/25',
-    },
-    {
-      title: 'Blocks Assigned',
-      count: uniqueBlocksCount.toString(),
-      change: 'Active administrative zones',
-      icon: MapPin,
-      color: 'bg-green-500/15 text-green-600 dark:bg-green-500/25 dark:text-green-400',
-    },
-    {
-      title: 'Active Block Cases',
-      count: activeCasesCount.toString(),
-      change: 'Pending live resolution',
-      icon: AlertCircle,
-      color: 'bg-orange/15 text-orange dark:bg-orange/25',
-    },
-    {
-      title: 'Resolved Grievances',
-      count: resolvedCasesCount.toString(),
-      change: 'Successfully addressed',
-      icon: CheckCircle2,
-      color: 'bg-darkblue/15 text-darkblue dark:bg-darkblue/40 dark:text-offwhite',
-    },
-  ]
-
-  const filteredCoordinators = coordinators.filter((c) => {
-    const query = searchQuery.toLowerCase()
-    const nameMatch = (c.name || '').toLowerCase().includes(query)
-    const blockMatch = (c.block || '').toLowerCase().includes(query)
-    const phoneMatch = (c.phone_no || '').toLowerCase().includes(query)
-    return nameMatch || blockMatch || phoneMatch
-  })
-
-  // Get grievance count matching a coordinator's block
-  const getCasesForBlock = (blockName: string | null) => {
-    if (!blockName) return { active: 0, resolved: 0 }
-    const norm = blockName.toLowerCase()
-    const matching = grievances.filter(
-      (g) => (g.room_no_and_block_name || '').toLowerCase().includes(norm)
-    )
-    const active = matching.filter((g) => {
-      const s = (g.status || '').toLowerCase()
-      return s === 'pending' || s === 'in progress' || s === 'under review'
-    }).length
-    const resolved = matching.filter(
-      (g) => (g.status || '').toLowerCase() === 'resolved'
-    ).length
-    return { active, resolved }
+  const handleOpenEdit = (c: BlockCoordinatorRow) => {
+    setEditingTarget(c)
+    setEditForm({
+      name: c.name || '',
+      block: c.block || '',
+      phone_no: c.phone_no || '',
+    })
+    setEditFormError(null)
+    setIsEditModalOpen(true)
   }
 
-  const canManage = canManageCoordinators
+  const handleEditCoordinator = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!canEditCoordinator) {
+      setEditFormError('Permission Denied: You do not have permission to edit coordinators.')
+      return
+    }
+    if (!editForm.name.trim() || !editForm.block.trim()) {
+      setEditFormError('Name and Block are required.')
+      return
+    }
+
+    try {
+      setIsEditing(true)
+      setEditFormError(null)
+
+      let query = supabase.from('block_coordinators').update({
+        name: editForm.name.trim(),
+        block: editForm.block.trim(),
+        phone_no: editForm.phone_no.trim() || null,
+      })
+
+      if (editingTarget?.name) {
+        query = query.eq('name', editingTarget.name)
+      }
+      if (editingTarget?.block) {
+        query = query.eq('block', editingTarget.block)
+      }
+
+      const { error } = await query
+
+      if (error) {
+        setEditFormError(error.message)
+      } else {
+        await fetchData()
+        setIsEditModalOpen(false)
+        setEditingTarget(null)
+      }
+    } catch (err: any) {
+      setEditFormError(err?.message || 'Failed to update coordinator')
+    } finally {
+      setIsEditing(false)
+    }
+  }
+
+  const handleOpenDelete = (c: BlockCoordinatorRow) => {
+    setDeletingTarget(c)
+    setDeleteError(null)
+    setIsDeleteModalOpen(true)
+  }
+
+  const handleDeleteCoordinator = async () => {
+    if (!canDeleteCoordinator) {
+      setDeleteError('Permission Denied: You do not have permission to delete coordinators.')
+      return
+    }
+    if (!deletingTarget) return
+
+    try {
+      setIsDeleting(true)
+      setDeleteError(null)
+
+      let query = supabase.from('block_coordinators').delete()
+
+      if (deletingTarget.name) {
+        query = query.eq('name', deletingTarget.name)
+      }
+      if (deletingTarget.block) {
+        query = query.eq('block', deletingTarget.block)
+      }
+
+      const { error } = await query
+
+      if (error) {
+        setDeleteError(error.message)
+      } else {
+        await fetchData()
+        setIsDeleteModalOpen(false)
+        setDeletingTarget(null)
+      }
+    } catch (err: any) {
+      setDeleteError(err?.message || 'Failed to delete coordinator')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  // Derived statistics via extracted utils
+  const stats = useMemo(() => calculateCoordinatorStats(coordinators), [coordinators])
+
+  const hasActionColumn = canEditCoordinator || canDeleteCoordinator
 
   return (
     <div className="min-h-screen bg-offwhite dark:bg-[#151726] text-darkblue dark:text-offwhite transition-colors duration-200">
@@ -220,57 +281,17 @@ export const BlockCoordinators = ({
         onNavigate={onNavigate}
       />
 
-      {/* Top Navbar */}
-      <header className="sticky top-0 z-30 bg-white/80 dark:bg-[#1a1d2e]/80 backdrop-blur-md border-b border-gray/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              type="button"
-              onClick={() => setIsDrawerOpen(true)}
-              className="p-2 rounded-xl text-darkblue dark:text-offwhite hover:bg-gray/10 dark:hover:bg-gray/20 transition-colors focus:outline-none"
-              aria-label="Open navigation drawer"
-            >
-              <Menu className="w-6 h-6" />
-            </button>
-
-            <div>
-              <h1 className="text-lg font-bold text-darkblue dark:text-offwhite leading-none">
-                Block Coordinators
-              </h1>
-              <p className="text-xs text-gray mt-0.5 hidden sm:block">
-                Jurisdiction Management &amp; Assignment
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={onToggleTheme}
-              className="p-2 rounded-xl bg-offwhite dark:bg-[#20243a] border border-gray/20 text-darkblue dark:text-offwhite hover:bg-gray/10 dark:hover:bg-gray/20 transition-colors focus:outline-none"
-              aria-label="Toggle theme"
-            >
-              {isDark ? <Sun className="w-5 h-5 text-orange" /> : <Moon className="w-5 h-5 text-darkblue" />}
-            </button>
-
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-offwhite dark:bg-[#20243a] border border-gray/15 text-xs text-gray">
-              <UserIcon className="w-3.5 h-3.5 text-lightblue" />
-              <span className="max-w-[150px] truncate font-medium text-darkblue dark:text-offwhite">
-                {user?.email || 'User'}
-              </span>
-            </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => signOutUser()}
-              leftIcon={<LogOut className="w-4 h-4" />}
-            >
-              Sign Out
-            </Button>
-          </div>
-        </div>
-      </header>
+      {/* Global Header */}
+      <Header
+        title="Block Coordinators"
+        subtitle="Jurisdiction Management & Assignment"
+        isDark={isDark}
+        onToggleTheme={onToggleTheme}
+        onOpenDrawer={() => setIsDrawerOpen(true)}
+        role={role}
+        userEmail={user?.email}
+        onSignOut={() => signOutUser()}
+      />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -295,7 +316,7 @@ export const BlockCoordinators = ({
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1">
           {stats.map((item) => {
             const Icon = item.icon
             return (
@@ -322,229 +343,279 @@ export const BlockCoordinators = ({
           })}
         </div>
 
-        {/* Coordinators Directory */}
-        <div className="bg-white dark:bg-[#20243a] rounded-3xl border border-gray/20 shadow-sm p-6 sm:p-8 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h3 className="text-xl font-bold text-darkblue dark:text-offwhite">
-                Coordinators Directory
-              </h3>
-              <p className="text-xs sm:text-sm text-gray mt-0.5">
-                Active field officers overseeing grievance resolution
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Search */}
-              <div className="relative">
-                <Search className="w-4 h-4 text-gray absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Search coordinator / block..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 pr-3 py-2 text-xs rounded-xl bg-offwhite dark:bg-[#151726] border border-gray/20 text-darkblue dark:text-offwhite placeholder:text-gray/70 focus:outline-none focus:border-lightblue transition-colors w-52 sm:w-64"
-                />
-              </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={fetchData}
-                isLoading={loading}
-                leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />}
-              >
-                Refresh
-              </Button>
-
-              {canManage && (
+        {/* Coordinators Directory using List component */}
+        <div className="bg-white dark:bg-[#20243a] rounded-3xl border border-gray/20 shadow-sm p-6 sm:p-8">
+          <List<BlockCoordinatorRow>
+            items={coordinators}
+            isLoading={loading || permissionsLoading}
+            searchable
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            searchPlaceholder="Search coordinator or block..."
+            searchKeys={['name', 'block', 'phone_no']}
+            title="Coordinators Directory"
+            subtitle="Active field officers overseeing grievance resolution"
+            count={coordinators.length}
+            variant="divided"
+            emptyTitle={!canViewCoordinators ? 'Access Restricted' : 'No block coordinators found'}
+            emptyDescription={
+              !canViewCoordinators
+                ? 'You do not have permission to view block coordinators.'
+                : 'No coordinator records match your search query.'
+            }
+            headerActions={
+              <div className="flex items-center gap-2">
                 <Button
-                  variant="primary"
+                  variant="outline"
                   size="sm"
-                  onClick={() => setIsAddModalOpen(true)}
-                  leftIcon={<Plus className="w-4 h-4" />}
+                  onClick={fetchData}
+                  isLoading={loading}
+                  leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />}
                 >
-                  Add Coordinator
+                  Refresh
                 </Button>
-              )}
-            </div>
-          </div>
 
-          {/* Coordinators Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm border-collapse">
-              <thead>
-                <tr className="border-b border-gray/20 text-xs font-semibold text-gray uppercase tracking-wider">
-                  <th className="pb-3 pl-2">Coordinator</th>
-                  <th className="pb-3">Block &amp; Jurisdiction</th>
-                  <th className="pb-3">Phone Number</th>
-                  <th className="pb-3">Active Cases</th>
-                  <th className="pb-3 pr-2">Resolved Cases</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray/15">
-                {loading || permissionsLoading ? (
-                  <tr>
-                    <td colSpan={5} className="py-8 text-center text-gray text-xs">
-                      Loading coordinators from database...
-                    </td>
-                  </tr>
-                ) : !canViewCoordinators ? (
-                  <tr>
-                    <td colSpan={5} className="py-8 text-center text-gray text-xs">
-                      Access Restricted: You do not have permission to view block coordinators.
-                    </td>
-                  </tr>
-                ) : filteredCoordinators.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="py-8 text-center text-gray text-xs">
-                      No block coordinators found in database.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredCoordinators.map((c, idx) => {
-                    const blockCases = getCasesForBlock(c.block)
-                    return (
-                      <tr
-                        key={`${c.name}-${c.block}-${idx}`}
-                        className="hover:bg-offwhite/60 dark:hover:bg-[#1a1d2e]/60 transition-colors"
-                      >
-                        <td className="py-4 pl-2">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-2xl bg-lightblue/20 text-lightblue dark:bg-orange/20 dark:text-orange flex items-center justify-center font-bold text-sm uppercase shadow-xs">
-                              {(c.name || 'C').charAt(0)}
-                            </div>
-                            <div>
-                              <div className="font-semibold text-darkblue dark:text-offwhite">
-                                {c.name || 'Unnamed Coordinator'}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="py-4">
-                          <div className="font-medium text-darkblue dark:text-offwhite flex items-center gap-1.5">
-                            <MapPin className="w-3.5 h-3.5 text-gray shrink-0" />
-                            <span>{c.block || 'Unassigned Block'}</span>
-                          </div>
-                        </td>
-
-                        <td className="py-4 text-xs">
-                          {c.phone_no ? (
-                            <div className="flex items-center gap-1.5 text-darkblue dark:text-offwhite">
-                              <Phone className="w-3.5 h-3.5 text-gray shrink-0" />
-                              <a
-                                href={`tel:${c.phone_no}`}
-                                className="hover:text-lightblue hover:underline"
-                              >
-                                {c.phone_no}
-                              </a>
-                            </div>
-                          ) : (
-                            <span className="text-gray">-</span>
-                          )}
-                        </td>
-
-                        <td className="py-4">
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-orange/15 text-orange dark:bg-orange/25">
-                            {blockCases.active} Pending
-                          </span>
-                        </td>
-
-                        <td className="py-4 pr-2 font-semibold text-green-600 dark:text-green-400 text-xs">
-                          {blockCases.resolved} Resolved
-                        </td>
-                      </tr>
-                    )
-                  })
+                {canAddCoordinator && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => setIsAddModalOpen(true)}
+                    leftIcon={<Plus className="w-4 h-4" />}
+                  >
+                    Add Coordinator
+                  </Button>
                 )}
-              </tbody>
-            </table>
-          </div>
+              </div>
+            }
+            renderItem={(c, idx) => {
+              const blockCases = getCoordinatorCases(grievances, c.block)
+              return (
+                <ListItem
+                  key={`${c.name}-${c.block}-${idx}`}
+                  size="lg"
+                  variant="flush"
+                  leading={
+                    <div className="w-11 h-11 rounded-2xl bg-lightblue/20 text-lightblue dark:bg-orange/20 dark:text-orange flex items-center justify-center font-bold text-sm uppercase shadow-xs">
+                      {(c.name || 'C').charAt(0)}
+                    </div>
+                  }
+                  title={c.name || 'Unnamed Coordinator'}
+                  subtitle={
+                    <div className="flex items-center gap-1.5 text-xs text-darkblue dark:text-offwhite mt-0.5">
+                      <MapPin className="w-3.5 h-3.5 text-gray shrink-0" />
+                      <span className="font-medium">{c.block || 'Unassigned Block'}</span>
+                    </div>
+                  }
+                  meta={
+                    <div className="flex items-center gap-2.5 flex-wrap mt-1">
+                      {c.phone_no ? (
+                        <a
+                          href={`tel:${c.phone_no}`}
+                          className="inline-flex items-center gap-1.5 text-xs text-gray hover:text-lightblue dark:hover:text-lightblue transition-colors"
+                        >
+                          <Phone className="w-3.5 h-3.5 text-gray shrink-0" />
+                          <span>{c.phone_no}</span>
+                        </a>
+                      ) : (
+                        <span className="text-xs text-gray/60">No phone provided</span>
+                      )}
+                      <ListBadge variant="orange" size="sm">
+                        {blockCases.active} Pending
+                      </ListBadge>
+                      <ListBadge variant="success" size="sm">
+                        {blockCases.resolved} Resolved
+                      </ListBadge>
+                    </div>
+                  }
+                  trailing={
+                    hasActionColumn ? (
+                      <div className="flex items-center gap-1.5">
+                        {canEditCoordinator && (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEdit(c)}
+                            className="p-2 rounded-xl text-gray hover:text-lightblue hover:bg-lightblue/10 transition-colors"
+                            title="Edit Coordinator"
+                            aria-label={`Edit ${c.name}`}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                        )}
+                        {canDeleteCoordinator && (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDelete(c)}
+                            className="p-2 rounded-xl text-gray hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                            title="Delete Coordinator"
+                            aria-label={`Delete ${c.name}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    ) : undefined
+                  }
+                />
+              )
+            }}
+          />
         </div>
       </main>
 
-      {/* Add Coordinator Modal */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="bg-white dark:bg-[#1a1d2e] rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray/20 space-y-5 animate-in fade-in zoom-in duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-gray/15">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-lightblue/15 text-lightblue">
-                  <Users className="w-5 h-5" />
-                </div>
-                <h3 className="font-bold text-lg text-darkblue dark:text-offwhite">
-                  Add Block Coordinator
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsAddModalOpen(false)}
-                className="p-1.5 rounded-lg text-gray hover:text-darkblue dark:hover:text-offwhite hover:bg-gray/10 dark:hover:bg-gray/20"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {/* Add Coordinator Global Modal */}
+      <Modal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        title="Add Block Coordinator"
+        subtitle="Create a new coordinator assignment"
+        icon={<Users className="w-5 h-5" />}
+        error={formError}
+      >
+        <form onSubmit={handleAddCoordinator} className="space-y-4">
+          <TextInput
+            label="Full Name"
+            placeholder="e.g. Ramesh Kumar"
+            required
+            value={newCoordinator.name}
+            onChange={(e) =>
+              setNewCoordinator((prev) => ({ ...prev, name: e.target.value }))
+            }
+          />
 
-            {formError && (
-              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-600 dark:text-red-400">
-                {formError}
-              </div>
-            )}
+          <TextInput
+            label="Block / Ward Name"
+            placeholder="e.g. North Block, Block A, Room 101-120"
+            required
+            value={newCoordinator.block}
+            onChange={(e) =>
+              setNewCoordinator((prev) => ({ ...prev, block: e.target.value }))
+            }
+          />
 
-            <form onSubmit={handleAddCoordinator} className="space-y-4">
-              <TextInput
-                label="Full Name"
-                placeholder="e.g. Ramesh Kumar"
-                required
-                value={newCoordinator.name}
-                onChange={(e) =>
-                  setNewCoordinator((prev) => ({ ...prev, name: e.target.value }))
-                }
-              />
+          <TextInput
+            label="Phone Number"
+            placeholder="e.g. +91 98765 43210"
+            type="tel"
+            value={newCoordinator.phone_no}
+            onChange={(e) =>
+              setNewCoordinator((prev) => ({ ...prev, phone_no: e.target.value }))
+            }
+          />
 
-              <TextInput
-                label="Block / Ward Name"
-                placeholder="e.g. North Block, Block A, Room 101-120"
-                required
-                value={newCoordinator.block}
-                onChange={(e) =>
-                  setNewCoordinator((prev) => ({ ...prev, block: e.target.value }))
-                }
-              />
-
-              <TextInput
-                label="Phone Number"
-                placeholder="e.g. +91 98765 43210"
-                type="tel"
-                value={newCoordinator.phone_no}
-                onChange={(e) =>
-                  setNewCoordinator((prev) => ({ ...prev, phone_no: e.target.value }))
-                }
-              />
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray/15">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsAddModalOpen(false)}
-                  disabled={isSubmitting}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="sm"
-                  isLoading={isSubmitting}
-                >
-                  Save Coordinator
-                </Button>
-              </div>
-            </form>
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray/15">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsAddModalOpen(false)}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              isLoading={isSubmitting}
+            >
+              Save Coordinator
+            </Button>
           </div>
-        </div>
+        </form>
+      </Modal>
+
+      {/* Edit Coordinator Global Modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false)
+          setEditingTarget(null)
+        }}
+        title="Edit Block Coordinator"
+        subtitle="Update coordinator details & jurisdiction"
+        icon={<Pencil className="w-5 h-5" />}
+        error={editFormError}
+      >
+        <form onSubmit={handleEditCoordinator} className="space-y-4">
+          <TextInput
+            label="Full Name"
+            placeholder="e.g. Ramesh Kumar"
+            required
+            value={editForm.name}
+            onChange={(e) =>
+              setEditForm((prev) => ({ ...prev, name: e.target.value }))
+            }
+          />
+
+          <TextInput
+            label="Block / Ward Name"
+            placeholder="e.g. North Block, Block A, Room 101-120"
+            required
+            value={editForm.block}
+            onChange={(e) =>
+              setEditForm((prev) => ({ ...prev, block: e.target.value }))
+            }
+          />
+
+          <TextInput
+            label="Phone Number"
+            placeholder="e.g. +91 98765 43210"
+            type="tel"
+            value={editForm.phone_no}
+            onChange={(e) =>
+              setEditForm((prev) => ({ ...prev, phone_no: e.target.value }))
+            }
+          />
+
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray/15">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setIsEditModalOpen(false)
+                setEditingTarget(null)
+              }}
+              disabled={isEditing}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              isLoading={isEditing}
+            >
+              Update Coordinator
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Delete Coordinator Global Confirm Modal */}
+      {deletingTarget && (
+        <ConfirmModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => {
+            setIsDeleteModalOpen(false)
+            setDeletingTarget(null)
+          }}
+          onConfirm={handleDeleteCoordinator}
+          title="Delete Coordinator"
+          subtitle="This action cannot be undone."
+          error={deleteError}
+          isLoading={isDeleting}
+          confirmText="Confirm Delete"
+          details={
+            <>
+              <p className="font-semibold text-darkblue dark:text-offwhite">
+                {deletingTarget.name || 'Unnamed Coordinator'}
+              </p>
+              <p className="text-gray">{deletingTarget.block || 'Unassigned Block'}</p>
+              {deletingTarget.phone_no && <p className="text-gray">{deletingTarget.phone_no}</p>}
+            </>
+          }
+        />
       )}
     </div>
   )

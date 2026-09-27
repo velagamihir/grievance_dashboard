@@ -4,4 +4,4 @@ export * from './constants'
 export * from './iconMap'
 export * from './export'
 export * from './permissions'
-
+export * from './dashboard'

@@ -1,25 +1,23 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
-  Menu,
-  Sun,
-  Moon,
-  LogOut,
   Inbox,
-  Clock,
-  CheckCircle2,
-  AlertCircle,
   TrendingUp,
-  User as UserIcon,
   RefreshCw,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { supabase } from '../lib/supabase'
-import { Button } from '../components/Buttons'
-import { Drawer } from '../components/Drawer'
-import { formatDate, getStatusBadgeClass } from '../utils'
-import type { HomeProps, DashboardStatItem, FormResponseRow } from '../types'
+import { Button, Drawer, Header } from '../components'
+import {
+  formatDate,
+  getStatusBadgeClass,
+  calculateGrievanceStats,
+  getRecentGrievances,
+  getGrievanceLocation,
+  getUserDisplayName,
+} from '../utils'
+import type { HomeProps, FormResponseRow } from '../types'
 
 export const Home = ({
   isDark,
@@ -29,7 +27,7 @@ export const Home = ({
 }: HomeProps) => {
   useDocumentTitle('Dashboard | Grievance Portal')
   const { user, signOutUser } = useAuth()
-  const { canViewAllGrievances, loading: permissionsLoading } = usePermissions()
+  const { role, canViewAllGrievances, loading: permissionsLoading } = usePermissions()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [grievances, setGrievances] = useState<FormResponseRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -71,51 +69,10 @@ export const Home = ({
     }
   }, [permissionsLoading, canViewAllGrievances])
 
-  // Dynamic statistics calculated directly from Supabase form_responses
-  const totalCount = grievances.length
-  const notStartedCount = grievances.filter((g) => {
-    const s = (g.status || '').toLowerCase()
-    return s === 'not yet started' || s === 'pending'
-  }).length
-  const inProgressCount = grievances.filter(
-    (g) => (g.status || '').toLowerCase() === 'in progress'
-  ).length
-  const resolvedCount = grievances.filter(
-    (g) => (g.status || '').toLowerCase() === 'resolved'
-  ).length
-
-  const stats: DashboardStatItem[] = [
-    {
-      title: 'Total Grievances',
-      count: totalCount.toString(),
-      change: `${totalCount} records logged in DB`,
-      icon: Inbox,
-      color: 'bg-lightblue/15 text-lightblue dark:bg-lightblue/25',
-    },
-    {
-      title: 'Not Yet Started',
-      count: notStartedCount.toString(),
-      change: `${notStartedCount} awaiting initial review`,
-      icon: Clock,
-      color: 'bg-orange/15 text-orange dark:bg-orange/25',
-    },
-    {
-      title: 'In Progress',
-      count: inProgressCount.toString(),
-      change: `${inProgressCount} currently active`,
-      icon: AlertCircle,
-      color: 'bg-darkblue/15 text-darkblue dark:bg-darkblue/40 dark:text-offwhite',
-    },
-    {
-      title: 'Resolved',
-      count: resolvedCount.toString(),
-      change: `${resolvedCount} resolved successfully`,
-      icon: CheckCircle2,
-      color: 'bg-green-500/15 text-green-600 dark:bg-green-500/25 dark:text-green-400',
-    },
-  ]
-
-  const recentGrievances = grievances.slice(0, 6)
+  // Dynamic statistics and recent list derived via extracted utils
+  const stats = useMemo(() => calculateGrievanceStats(grievances), [grievances])
+  const recentGrievances = useMemo(() => getRecentGrievances(grievances, 6), [grievances])
+  const userDisplayName = useMemo(() => getUserDisplayName(user), [user])
 
   return (
     <div className="min-h-screen bg-offwhite dark:bg-[#151726] text-darkblue dark:text-offwhite transition-colors duration-200">
@@ -127,57 +84,17 @@ export const Home = ({
         onNavigate={onNavigate}
       />
 
-      {/* Top Navbar */}
-      <header className="sticky top-0 z-30 bg-white/80 dark:bg-[#1a1d2e]/80 backdrop-blur-md border-b border-gray/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              type="button"
-              onClick={() => setIsDrawerOpen(true)}
-              className="p-2 rounded-xl text-darkblue dark:text-offwhite hover:bg-gray/10 dark:hover:bg-gray/20 transition-colors focus:outline-none"
-              aria-label="Open navigation drawer"
-            >
-              <Menu className="w-6 h-6" />
-            </button>
-
-            <div>
-              <h1 className="text-lg font-bold text-darkblue dark:text-offwhite leading-none">
-                Grievance Dashboard
-              </h1>
-              <p className="text-xs text-gray mt-0.5 hidden sm:block">
-                Overview &amp; Incident Resolution
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={onToggleTheme}
-              className="p-2 rounded-xl bg-offwhite dark:bg-[#20243a] border border-gray/20 text-darkblue dark:text-offwhite hover:bg-gray/10 dark:hover:bg-gray/20 transition-colors focus:outline-none"
-              aria-label="Toggle theme"
-            >
-              {isDark ? <Sun className="w-5 h-5 text-orange" /> : <Moon className="w-5 h-5 text-darkblue" />}
-            </button>
-
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-offwhite dark:bg-[#20243a] border border-gray/15 text-xs text-gray">
-              <UserIcon className="w-3.5 h-3.5 text-lightblue" />
-              <span className="max-w-[150px] truncate font-medium text-darkblue dark:text-offwhite">
-                {user?.email || 'User'}
-              </span>
-            </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => signOutUser()}
-              leftIcon={<LogOut className="w-4 h-4" />}
-            >
-              Sign Out
-            </Button>
-          </div>
-        </div>
-      </header>
+      {/* Global Header */}
+      <Header
+        title="Grievance Dashboard"
+        subtitle="Overview & Incident Resolution"
+        isDark={isDark}
+        onToggleTheme={onToggleTheme}
+        onOpenDrawer={() => setIsDrawerOpen(true)}
+        role={role}
+        userEmail={user?.email}
+        onSignOut={() => signOutUser()}
+      />
 
       {/* Main Dashboard Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -189,7 +106,7 @@ export const Home = ({
               Real-time Grievance Analytics
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              Welcome back, {user?.email?.split('@')[0] || 'User'}
+              Welcome back, {userDisplayName}
             </h2>
             <p className="text-sm sm:text-base text-offwhite/85">
               Live overview of active grievances, resolution status, and logged complaints queried directly from the database.
@@ -311,7 +228,7 @@ export const Home = ({
                         <div className="text-gray text-[11px]">{item.email || '-'}</div>
                       </td>
                       <td className="py-4 text-gray text-xs">
-                        {item.branch || item.room_no_and_block_name || item.bus_route || '-'}
+                        {getGrievanceLocation(item)}
                       </td>
                       <td className="py-4 text-gray text-xs">
                         {formatDate(item.created_at)}
