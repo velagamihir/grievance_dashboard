@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState } from 'react'
 import {
   Plus,
   Trash2,
@@ -20,10 +20,7 @@ import {
   Building,
   Download,
 } from 'lucide-react'
-import { useAuth } from '../context/AuthContext'
-import { usePermissions } from '../hooks/usePermissions'
-import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { supabase } from '../lib/supabase'
+import { useDocumentTitle, useGrievancePage } from '../hooks'
 import {
   Button,
   Drawer,
@@ -39,17 +36,12 @@ import {
 import {
   STATUS_OPTIONS,
   GRIEVANCE_TYPES,
-  initialGrievanceFormData,
   getStatusBadgeVariant,
   formatDate,
-  exportGrievancesToExcel,
-  validateLocationRequirement,
 } from '../utils'
 import type {
   GrievancePageProps,
   FormResponseRow,
-  GrievanceFormData,
-  SourceRow,
 } from '../types'
 
 export const GrievancePage: React.FC<GrievancePageProps> = ({
@@ -59,377 +51,58 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
   onNavigate,
 }) => {
   useDocumentTitle('Grievances | Grievance Portal')
-  const { user, signOutUser } = useAuth()
+
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+
+  // Extracted custom hook containing all functions, state, and API operations
   const {
-    role,
-    loading: permissionsLoading,
+    grievances,
+    loading,
+    refreshing,
+    toast,
+    isAddModalOpen,
+    isEditModalOpen,
+    isDeleteModalOpen,
+    selectedGrievance,
+    formData,
+    editError,
+    submitting,
+    searchQuery,
+    statusFilter,
+    typeFilter,
+    sources,
+    stats,
+    availableGrievanceTypes,
+    filteredByTypeGrievances,
+    fullyFilteredGrievances,
     canViewAllGrievances,
     canCreateGrievance,
     canEditGrievance,
     canEditStatus,
     canDeleteGrievance,
-  } = usePermissions()
-
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
-  const [grievances, setGrievances] = useState<FormResponseRow[]>([])
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null)
-
-  // Modals state
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
-  const [selectedGrievance, setSelectedGrievance] = useState<FormResponseRow | null>(null)
-  const [formData, setFormData] = useState<GrievanceFormData>(initialGrievanceFormData)
-  const [editError, setEditError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState('All')
-  const [typeFilter, setTypeFilter] = useState('All')
-
-  // Auto-clear toast
-  useEffect(() => {
-    if (toast) {
-      const timer = setTimeout(() => setToast(null), 4000)
-      return () => clearTimeout(timer)
-    }
-  }, [toast])
-
-  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
-    setToast({ message, type })
-  }
-
-  const [sources, setSources] = useState<string[]>(['Form', 'Web Portal', 'Mobile App', 'Kiosk'])
-
-  // Fetch Sources from Supabase
-  const fetchSources = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from('sources')
-        .select('id, source_name')
-        .order('id', { ascending: true })
-
-      if (!error && data && data.length > 0) {
-        const names = (data as SourceRow[]).map((s) => s.source_name).filter(Boolean)
-        if (names.length > 0) {
-          setSources(names)
-        }
-      }
-    } catch (err) {
-      console.warn('[GrievancePage] Error fetching sources:', err)
-    }
-  }, [])
-
-  const fetchGrievances = useCallback(async () => {
-    if (!canViewAllGrievances) {
-      setGrievances([])
-      setLoading(false)
-      return
-    }
-
-    try {
-      setRefreshing(true)
-      const { data, error } = await supabase
-        .from('form_responses')
-        .select('*')
-        .order('id', { ascending: false })
-
-      if (error) {
-        console.warn('[GrievancePage] Supabase fetch error:', error.message)
-        showToast(`Database error: ${error.message}`, 'error')
-        setGrievances([])
-      } else if (data) {
-        setGrievances(data as FormResponseRow[])
-      }
-    } catch (err: unknown) {
-      console.error('[GrievancePage] Unexpected error:', err)
-      showToast('Error connecting to database', 'error')
-      setGrievances([])
-    } finally {
-      setLoading(false)
-      setRefreshing(false)
-    }
-  }, [canViewAllGrievances])
-
-  useEffect(() => {
-    fetchSources()
-  }, [fetchSources])
-
-  useEffect(() => {
-    if (!permissionsLoading) {
-      if (canViewAllGrievances) {
-        fetchGrievances()
-      } else {
-        setGrievances([])
-        setLoading(false)
-      }
-    }
-  }, [permissionsLoading, canViewAllGrievances, fetchGrievances])
-
-  // 1. Inline Status Dropdown Change
-  const handleStatusChange = async (grievanceId: number, newStatus: string) => {
-    if (!canEditStatus) {
-      showToast('Permission Denied: You do not have permission to update grievance status.', 'error')
-      return
-    }
-
-    const previousGrievances = [...grievances]
-    // Optimistic Update
-    setGrievances((prev) =>
-      prev.map((g) => (g.id === grievanceId ? { ...g, status: newStatus } : g))
-    )
-
-    try {
-      const { error } = await supabase
-        .from('form_responses')
-        .update({ status: newStatus })
-        .eq('id', grievanceId)
-
-      if (error) {
-        console.warn('[handleStatusChange] Error updating status in Supabase:', error.message)
-        // Even if supabase fails or offline, notify user
-        showToast(`Status updated to "${newStatus}" locally`, 'info')
-      } else {
-        showToast(`Grievance #${grievanceId} status updated to "${newStatus}"`, 'success')
-      }
-    } catch (err) {
-      console.error('[handleStatusChange] Unexpected error:', err)
-      setGrievances(previousGrievances)
-      showToast('Failed to update status. Please try again.', 'error')
-    }
-  }
-
-  // 2. Open Add Grievance Modal
-  const handleOpenAddModal = () => {
-    if (!canCreateGrievance) {
-      showToast('Permission Denied: You do not have permission to file grievances.', 'error')
-      return
-    }
-    setIsAddModalOpen(true)
-  }
-
-
-  // 4. Open Edit Grievance Modal
-  const handleOpenEditModal = (item: FormResponseRow) => {
-    if (!canEditGrievance) {
-      showToast('Permission Denied: You do not have permission to edit grievance details.', 'error')
-      return
-    }
-    setSelectedGrievance(item)
-    setEditError(null)
-    setFormData({
-      name: item.name || '',
-      email: item.email || '',
-      type_of_grievance: item.type_of_grievance || 'Hostel & Accommodation',
-      problem_description: item.problem_description || '',
-      branch: item.branch || 'Computer Science',
-      section: item.section || 'A',
-      year: item.year || '1st Year',
-      room_no_and_block_name: item.room_no_and_block_name || '',
-      bus_route: item.bus_route || '',
-      bus_number: item.bus_number || '',
-      suggestions: item.suggestions || '',
-      status: item.status || 'Pending',
-      source: item.source || 'Form',
-    })
-    setIsEditModalOpen(true)
-  }
-
-  // 5. Submit Update Grievance Details
-  const handleUpdateGrievance = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedGrievance) return
-    setEditError(null)
-
-    if (!canEditGrievance) {
-      const msg = 'Permission Denied: You do not have permission to edit grievance details.'
-      setEditError(msg)
-      showToast(msg, 'error')
-      return
-    }
-
-    const locationValidation = validateLocationRequirement({
-      room_no_and_block_name: formData.room_no_and_block_name,
-      bus_route: formData.bus_route,
-      bus_number: formData.bus_number,
-    })
-
-    if (!locationValidation.isValid) {
-      const msg = locationValidation.error || 'Either Room No & Block or Bus No / Route is mandatory.'
-      setEditError(msg)
-      showToast(msg, 'error')
-      return
-    }
-
-    try {
-      setSubmitting(true)
-      const updatedFields = {
-        name: formData.name.trim(),
-        email: formData.email.trim(),
-        type_of_grievance: formData.type_of_grievance,
-        problem_description: formData.problem_description.trim(),
-        branch: formData.branch,
-        section: formData.section,
-        year: formData.year,
-        room_no_and_block_name: formData.room_no_and_block_name.trim(),
-        bus_route: formData.bus_route.trim(),
-        bus_number: formData.bus_number.trim(),
-        suggestions: formData.suggestions.trim(),
-        status: formData.status,
-      }
-
-      const { error } = await supabase
-        .from('form_responses')
-        .update(updatedFields)
-        .eq('id', selectedGrievance.id)
-
-      if (error) {
-        console.warn('[handleUpdateGrievance] Supabase update error:', error.message)
-      }
-
-      setGrievances((prev) =>
-        prev.map((g) => (g.id === selectedGrievance.id ? { ...g, ...updatedFields } : g))
-      )
-      showToast(`Grievance #${selectedGrievance.id} updated successfully!`, 'success')
-      setIsEditModalOpen(false)
-      setSelectedGrievance(null)
-    } catch (err) {
-      console.error('[handleUpdateGrievance] Unexpected error:', err)
-      showToast('Failed to update grievance details.', 'error')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  // 6. Open Delete Confirmation Modal
-  const handleOpenDeleteModal = (item: FormResponseRow) => {
-    if (!canDeleteGrievance) {
-      showToast('Permission Denied: You do not have permission to delete grievances.', 'error')
-      return
-    }
-    setSelectedGrievance(item)
-    setIsDeleteModalOpen(true)
-  }
-
-  // 7. Confirm Delete Grievance
-  const handleDeleteGrievance = async () => {
-    if (!selectedGrievance) return
-
-    if (!canDeleteGrievance) {
-      showToast('Permission Denied: You do not have permission to delete grievances.', 'error')
-      return
-    }
-
-    try {
-      setSubmitting(true)
-      const { error } = await supabase
-        .from('form_responses')
-        .delete()
-        .eq('id', selectedGrievance.id)
-
-      if (error) {
-        console.warn('[handleDeleteGrievance] Supabase delete error:', error.message)
-      }
-
-      setGrievances((prev) => prev.filter((g) => g.id !== selectedGrievance.id))
-      showToast(`Grievance #${selectedGrievance.id} deleted successfully!`, 'success')
-      setIsDeleteModalOpen(false)
-      setSelectedGrievance(null)
-    } catch (err) {
-      console.error('[handleDeleteGrievance] Unexpected error:', err)
-      showToast('Failed to delete grievance.', 'error')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  // Available Grievance Categories (including dynamic DB categories)
-  const availableGrievanceTypes = useMemo(() => {
-    const typesSet = new Set<string>(GRIEVANCE_TYPES)
-    grievances.forEach((g) => {
-      if (g.type_of_grievance) typesSet.add(g.type_of_grievance)
-    })
-    return ['All', ...Array.from(typesSet)]
-  }, [grievances])
-
-  // Filtered by Type for List and Category-specific Stats
-  const filteredByTypeGrievances = useMemo(() => {
-    if (typeFilter === 'All') return grievances
-    return grievances.filter(
-      (g) => (g.type_of_grievance || '').toLowerCase() === typeFilter.toLowerCase()
-    )
-  }, [grievances, typeFilter])
-
-  // Fully filtered grievances (Type + Status + Search) for Export
-  const fullyFilteredGrievances = useMemo(() => {
-    return filteredByTypeGrievances.filter((item) => {
-      // 1. Status filter
-      if (statusFilter !== 'All') {
-        if ((item.status || '').toLowerCase() !== statusFilter.toLowerCase()) {
-          return false
-        }
-      }
-      // 2. Search query filter
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim()
-        const matches = [
-          item.name,
-          item.problem_description,
-          item.email,
-          item.type_of_grievance,
-          item.room_no_and_block_name,
-          item.bus_route,
-          item.bus_number,
-          item.branch,
-        ].some((val) => val && String(val).toLowerCase().includes(q))
-        if (!matches) return false
-      }
-      return true
-    })
-  }, [filteredByTypeGrievances, statusFilter, searchQuery])
-
-  // Statistics calculation (reactive to selected grievance type)
-  const stats = useMemo(() => {
-    const target = filteredByTypeGrievances
-    const total = target.length
-    const notYetStarted = target.filter((g) => {
-      const s = (g.status || '').toLowerCase()
-      return s === 'not yet started' || s === 'pending'
-    }).length
-    const inProgress = target.filter((g) => (g.status || '').toLowerCase() === 'in progress').length
-    const issueMailSent = target.filter((g) => (g.status || '').toLowerCase() === 'issue mail sent').length
-    const finalMailSent = target.filter((g) => (g.status || '').toLowerCase() === 'final mail sent').length
-    const resolved = target.filter((g) => (g.status || '').toLowerCase() === 'resolved').length
-
-    return { total, notYetStarted, inProgress, issueMailSent, finalMailSent, resolved }
-  }, [filteredByTypeGrievances])
-
-  // Export Grievances to Excel / CSV (Filtered by Type, Status, & Search)
-  const handleExportToExcel = () => {
-    try {
-      const exportData = fullyFilteredGrievances
-      if (exportData.length === 0) {
-        showToast('No grievances matching current filters to export.', 'info')
-        return
-      }
-
-      const typeTag = typeFilter !== 'All' ? `_${typeFilter.replace(/[^a-zA-Z0-9]/g, '_')}` : ''
-      const statusTag = statusFilter !== 'All' ? `_${statusFilter.replace(/[^a-zA-Z0-9]/g, '_')}` : ''
-      const dateTag = new Date().toISOString().slice(0, 10)
-      const filename = `grievances${typeTag}${statusTag}_${dateTag}.csv`
-
-      exportGrievancesToExcel(exportData, filename)
-      showToast(
-        `Exported ${exportData.length} grievance(s)${
-          typeFilter !== 'All' ? ` for "${typeFilter}"` : ''
-        }${statusFilter !== 'All' ? ` [${statusFilter}]` : ''} to Excel!`,
-        'success'
-      )
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Failed to export grievances.', 'error')
-    }
-  }
+    permissionsLoading,
+    role,
+    user,
+    setToast,
+    setSearchQuery,
+    setStatusFilter,
+    setTypeFilter,
+    setIsAddModalOpen,
+    setIsEditModalOpen,
+    setIsDeleteModalOpen,
+    setFormData,
+    setEditError,
+    signOutUser,
+    fetchGrievances,
+    handleStatusChange,
+    handleOpenAddModal,
+    handleOpenEditModal,
+    handleUpdateGrievance,
+    handleOpenDeleteModal,
+    handleDeleteGrievance,
+    handleExportToExcel,
+    handleGrievanceCreated,
+  } = useGrievancePage()
 
   return (
     <div className="min-h-screen bg-offwhite dark:bg-[#151726] text-darkblue dark:text-offwhite transition-colors duration-200">
@@ -678,15 +351,15 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
             emptyTitle={
               !canViewAllGrievances
                 ? 'Access Restricted'
-                : grievances.length === 0
+                : filteredByTypeGrievances.length === 0
                   ? 'No Grievances in Database'
                   : 'No Matching Grievances'
             }
             emptyDescription={
               !canViewAllGrievances
                 ? 'You do not have permission to view grievances. Please contact your administrator to assign role permissions.'
-                : grievances.length === 0
-                  ? 'No grievances have been registered in the database yet.'
+                : filteredByTypeGrievances.length === 0
+                  ? 'No grievances have been registered in the database for this category yet.'
                   : 'No grievance records match your current search and filter criteria.'
             }
             emptyActionLabel={canCreateGrievance ? 'File New Grievance' : undefined}
@@ -854,11 +527,7 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
           variant="embedded"
           readOnlyStatus={!canEditStatus}
           onCancel={() => setIsAddModalOpen(false)}
-          onSuccess={(created) => {
-            setGrievances((prev) => [created, ...prev])
-            setIsAddModalOpen(false)
-            showToast('Grievance filed successfully!', 'success')
-          }}
+          onSuccess={handleGrievanceCreated}
         />
       </Modal>
 
