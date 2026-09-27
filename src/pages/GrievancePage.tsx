@@ -33,6 +33,8 @@ import {
   ListBadge,
   AddGrievanceCard,
   InputCard,
+  Modal,
+  ConfirmModal,
 } from '../components'
 import {
   STATUS_OPTIONS,
@@ -717,181 +719,161 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
       {/* ========================================== */}
       {/* ADD GRIEVANCE MODAL                        */}
       {/* ========================================== */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-darkblue/50 dark:bg-black/70 backdrop-blur-xs overflow-y-auto">
-          <div className="relative w-full max-w-2xl bg-white dark:bg-[#1a1d2e] rounded-3xl border border-gray/20 shadow-2xl p-4 sm:p-6 my-8 max-h-[90vh] overflow-y-auto">
-            <AddGrievanceCard
-              variant="embedded"
-              readOnlyStatus={!canEditStatus}
-              onCancel={() => setIsAddModalOpen(false)}
-              onSuccess={(created) => {
-                setGrievances((prev) => [created, ...prev])
-                setIsAddModalOpen(false)
-                showToast('Grievance filed successfully!', 'success')
-              }}
-            />
-          </div>
-        </div>
-      )}
+      <Modal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        size="2xl"
+        showCloseButton={false}
+      >
+        <AddGrievanceCard
+          variant="embedded"
+          readOnlyStatus={!canEditStatus}
+          onCancel={() => setIsAddModalOpen(false)}
+          onSuccess={(created) => {
+            setGrievances((prev) => [created, ...prev])
+            setIsAddModalOpen(false)
+            showToast('Grievance filed successfully!', 'success')
+          }}
+        />
+      </Modal>
 
       {/* ========================================== */}
       {/* EDIT GRIEVANCE DETAILS MODAL               */}
       {/* ========================================== */}
-      {isEditModalOpen && selectedGrievance && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-darkblue/50 dark:bg-black/70 backdrop-blur-xs overflow-y-auto">
-          <div className="relative w-full max-w-2xl bg-white dark:bg-[#1a1d2e] rounded-3xl border border-gray/20 shadow-2xl p-4 sm:p-6 my-8 max-h-[90vh] overflow-y-auto">
-            <InputCard
-              title={`Edit Grievance #${selectedGrievance.id}`}
-              subtitle="Update complaint details, department assignment, and notes"
-              icon={<Edit3 className="w-5 h-5" />}
-              iconBgColor="bg-lightblue/15 text-lightblue dark:bg-lightblue/25"
-              variant="embedded"
-              submitButtonText="Save Changes"
-              isLoading={submitting}
-              onCancel={() => setIsEditModalOpen(false)}
-              onSubmit={handleUpdateGrievance}
-              fields={[
-                {
-                  name: 'name',
-                  label: 'Student / Complainant Name',
-                  type: 'text',
-                  required: true,
-                  leftIcon: <UserIcon className="w-4 h-4" />,
-                  colSpan: 1,
-                },
-                {
-                  name: 'email',
-                  label: 'Contact Email Address',
-                  type: 'email',
-                  required: true,
-                  leftIcon: <Mail className="w-4 h-4" />,
-                  colSpan: 1,
-                },
-                {
-                  name: 'type_of_grievance',
-                  label: 'Category / Department',
-                  type: 'select',
-                  required: true,
-                  leftIcon: <Layers className="w-4 h-4" />,
-                  options: GRIEVANCE_TYPES,
-                  colSpan: 1,
-                },
-                {
-                  name: 'source',
-                  label: 'Submission Source',
-                  type: 'select',
-                  leftIcon: <Tag className="w-4 h-4" />,
-                  options: sources,
-                  colSpan: 1,
-                },
-                {
-                  name: 'status',
-                  label: 'Status',
-                  type: 'select',
-                  disabled: !canEditStatus,
-                  options: ['Pending', 'Under Review', 'In Progress', 'Resolved', 'Rejected'],
-                  colSpan: 1,
-                },
-                {
-                  name: 'problem_description',
-                  label: 'Detailed Problem Description',
-                  type: 'textarea',
-                  required: true,
-                  rows: 4,
-                  colSpan: 'full',
-                },
-                {
-                  name: 'branch',
-                  label: 'Branch / Major',
-                  type: 'text',
-                  leftIcon: <GraduationCap className="w-4 h-4" />,
-                  colSpan: 1,
-                },
-                {
-                  name: 'section',
-                  label: 'Section',
-                  type: 'text',
-                  colSpan: 1,
-                },
-                {
-                  name: 'year',
-                  label: 'Year of Study',
-                  type: 'text',
-                  colSpan: 1,
-                },
-                {
-                  name: 'room_no_and_block_name',
-                  label: 'Room No & Block',
-                  type: 'text',
-                  leftIcon: <Building className="w-4 h-4" />,
-                  colSpan: 1,
-                },
-                {
-                  name: 'bus_number',
-                  label: 'Bus No / Route',
-                  type: 'text',
-                  leftIcon: <Bus className="w-4 h-4" />,
-                  colSpan: 1,
-                },
-                {
-                  name: 'suggestions',
-                  label: 'Suggestions / Action Notes',
-                  type: 'text',
-                  leftIcon: <Sparkles className="w-4 h-4" />,
-                  colSpan: 'full',
-                },
-              ]}
-              values={formData as unknown as Record<string, string>}
-              onChange={(name, value) => setFormData((prev) => ({ ...prev, [name]: value }))}
-            />
-          </div>
-        </div>
+      {selectedGrievance && (
+        <Modal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          size="2xl"
+          showCloseButton={false}
+        >
+          <InputCard
+            title={`Edit Grievance #${selectedGrievance.id}`}
+            subtitle="Update complaint details, department assignment, and notes"
+            icon={<Edit3 className="w-5 h-5" />}
+            iconBgColor="bg-lightblue/15 text-lightblue dark:bg-lightblue/25"
+            variant="embedded"
+            submitButtonText="Save Changes"
+            isLoading={submitting}
+            onCancel={() => setIsEditModalOpen(false)}
+            onSubmit={handleUpdateGrievance}
+            fields={[
+              {
+                name: 'name',
+                label: 'Student / Complainant Name',
+                type: 'text',
+                required: true,
+                leftIcon: <UserIcon className="w-4 h-4" />,
+                colSpan: 1,
+              },
+              {
+                name: 'email',
+                label: 'Contact Email Address',
+                type: 'email',
+                required: true,
+                leftIcon: <Mail className="w-4 h-4" />,
+                colSpan: 1,
+              },
+              {
+                name: 'type_of_grievance',
+                label: 'Category / Department',
+                type: 'select',
+                required: true,
+                leftIcon: <Layers className="w-4 h-4" />,
+                options: GRIEVANCE_TYPES,
+                colSpan: 1,
+              },
+              {
+                name: 'source',
+                label: 'Submission Source',
+                type: 'select',
+                leftIcon: <Tag className="w-4 h-4" />,
+                options: sources,
+                colSpan: 1,
+              },
+              {
+                name: 'status',
+                label: 'Status',
+                type: 'select',
+                disabled: !canEditStatus,
+                options: ['Pending', 'Under Review', 'In Progress', 'Resolved', 'Rejected'],
+                colSpan: 1,
+              },
+              {
+                name: 'problem_description',
+                label: 'Detailed Problem Description',
+                type: 'textarea',
+                required: true,
+                rows: 4,
+                colSpan: 'full',
+              },
+              {
+                name: 'branch',
+                label: 'Branch / Major',
+                type: 'text',
+                leftIcon: <GraduationCap className="w-4 h-4" />,
+                colSpan: 1,
+              },
+              {
+                name: 'section',
+                label: 'Section',
+                type: 'text',
+                colSpan: 1,
+              },
+              {
+                name: 'year',
+                label: 'Year of Study',
+                type: 'text',
+                colSpan: 1,
+              },
+              {
+                name: 'room_no_and_block_name',
+                label: 'Room No & Block',
+                type: 'text',
+                leftIcon: <Building className="w-4 h-4" />,
+                colSpan: 1,
+              },
+              {
+                name: 'bus_number',
+                label: 'Bus No / Route',
+                type: 'text',
+                leftIcon: <Bus className="w-4 h-4" />,
+                colSpan: 1,
+              },
+              {
+                name: 'suggestions',
+                label: 'Suggestions / Action Notes',
+                type: 'text',
+                leftIcon: <Sparkles className="w-4 h-4" />,
+                colSpan: 'full',
+              },
+            ]}
+            values={formData as unknown as Record<string, string>}
+            onChange={(name, value) => setFormData((prev) => ({ ...prev, [name]: value }))}
+          />
+        </Modal>
       )}
 
       {/* ========================================== */}
       {/* DELETE CONFIRMATION MODAL                  */}
       {/* ========================================== */}
-      {isDeleteModalOpen && selectedGrievance && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-darkblue/50 dark:bg-black/70 backdrop-blur-xs">
-          <div className="relative w-full max-w-md bg-white dark:bg-[#1a1d2e] rounded-3xl border border-gray/20 shadow-2xl p-6 sm:p-8 space-y-5">
-            <div className="flex items-center gap-3.5 text-red-600 dark:text-red-400">
-              <div className="p-3 rounded-2xl bg-red-500/15">
-                <Trash2 className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-darkblue dark:text-offwhite">
-                  Delete Grievance #{selectedGrievance.id}?
-                </h3>
-                <p className="text-xs text-gray">This action cannot be undone.</p>
-              </div>
-            </div>
-
-            <p className="text-xs sm:text-sm text-darkblue/80 dark:text-offwhite/80 bg-offwhite dark:bg-[#151726] p-3 rounded-xl border border-gray/15">
+      {selectedGrievance && (
+        <ConfirmModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => setIsDeleteModalOpen(false)}
+          onConfirm={handleDeleteGrievance}
+          title={`Delete Grievance #${selectedGrievance.id}?`}
+          subtitle="This action cannot be undone."
+          confirmText="Delete Record"
+          isLoading={submitting}
+          message={
+            <p className="p-3 rounded-xl bg-offwhite dark:bg-[#151726] border border-gray/15">
               Are you sure you want to permanently delete the grievance filed by{' '}
               <strong>{selectedGrievance.name || 'this student'}</strong> for{' '}
               <strong>{selectedGrievance.type_of_grievance || 'General Issue'}</strong>?
             </p>
-
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <Button
-                variant="outline"
-                size="md"
-                onClick={() => setIsDeleteModalOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                size="md"
-                onClick={handleDeleteGrievance}
-                isLoading={submitting}
-                className="bg-red-600 hover:bg-red-700 text-white"
-              >
-                Delete Record
-              </Button>
-            </div>
-          </div>
-        </div>
+          }
+        />
       )}
     </div>
   )

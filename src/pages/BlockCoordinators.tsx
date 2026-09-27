@@ -4,7 +4,6 @@ import {
   MapPin,
   Phone,
   Plus,
-  X,
   Pencil,
   Trash2,
   RefreshCw,
@@ -13,7 +12,17 @@ import { useAuth } from '../context/AuthContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { supabase } from '../lib/supabase'
-import { Button, Drawer, TextInput, Header, List, ListItem, ListBadge } from '../components'
+import {
+  Button,
+  Drawer,
+  TextInput,
+  Header,
+  List,
+  ListItem,
+  ListBadge,
+  Modal,
+  ConfirmModal,
+} from '../components'
 import type { BlockCoordinatorsProps, BlockCoordinatorRow, CoordinatorStatItem, FormResponseRow } from '../types'
 
 export const BlockCoordinators = ({
@@ -482,234 +491,160 @@ export const BlockCoordinators = ({
         </div>
       </main>
 
-      {/* Add Coordinator Modal */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="bg-white dark:bg-[#1a1d2e] rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray/20 space-y-5 animate-in fade-in zoom-in duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-gray/15">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-lightblue/15 text-lightblue">
-                  <Users className="w-5 h-5" />
-                </div>
-                <h3 className="font-bold text-lg text-darkblue dark:text-offwhite">
-                  Add Block Coordinator
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsAddModalOpen(false)}
-                className="p-1.5 rounded-lg text-gray hover:text-darkblue dark:hover:text-offwhite hover:bg-gray/10 dark:hover:bg-gray/20"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {/* Add Coordinator Global Modal */}
+      <Modal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        title="Add Block Coordinator"
+        subtitle="Create a new coordinator assignment"
+        icon={<Users className="w-5 h-5" />}
+        error={formError}
+      >
+        <form onSubmit={handleAddCoordinator} className="space-y-4">
+          <TextInput
+            label="Full Name"
+            placeholder="e.g. Ramesh Kumar"
+            required
+            value={newCoordinator.name}
+            onChange={(e) =>
+              setNewCoordinator((prev) => ({ ...prev, name: e.target.value }))
+            }
+          />
 
-            {formError && (
-              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-600 dark:text-red-400">
-                {formError}
-              </div>
-            )}
+          <TextInput
+            label="Block / Ward Name"
+            placeholder="e.g. North Block, Block A, Room 101-120"
+            required
+            value={newCoordinator.block}
+            onChange={(e) =>
+              setNewCoordinator((prev) => ({ ...prev, block: e.target.value }))
+            }
+          />
 
-            <form onSubmit={handleAddCoordinator} className="space-y-4">
-              <TextInput
-                label="Full Name"
-                placeholder="e.g. Ramesh Kumar"
-                required
-                value={newCoordinator.name}
-                onChange={(e) =>
-                  setNewCoordinator((prev) => ({ ...prev, name: e.target.value }))
-                }
-              />
+          <TextInput
+            label="Phone Number"
+            placeholder="e.g. +91 98765 43210"
+            type="tel"
+            value={newCoordinator.phone_no}
+            onChange={(e) =>
+              setNewCoordinator((prev) => ({ ...prev, phone_no: e.target.value }))
+            }
+          />
 
-              <TextInput
-                label="Block / Ward Name"
-                placeholder="e.g. North Block, Block A, Room 101-120"
-                required
-                value={newCoordinator.block}
-                onChange={(e) =>
-                  setNewCoordinator((prev) => ({ ...prev, block: e.target.value }))
-                }
-              />
-
-              <TextInput
-                label="Phone Number"
-                placeholder="e.g. +91 98765 43210"
-                type="tel"
-                value={newCoordinator.phone_no}
-                onChange={(e) =>
-                  setNewCoordinator((prev) => ({ ...prev, phone_no: e.target.value }))
-                }
-              />
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray/15">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsAddModalOpen(false)}
-                  disabled={isSubmitting}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="sm"
-                  isLoading={isSubmitting}
-                >
-                  Save Coordinator
-                </Button>
-              </div>
-            </form>
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray/15">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsAddModalOpen(false)}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              isLoading={isSubmitting}
+            >
+              Save Coordinator
+            </Button>
           </div>
-        </div>
-      )}
+        </form>
+      </Modal>
 
-      {/* Edit Coordinator Modal */}
-      {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="bg-white dark:bg-[#1a1d2e] rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray/20 space-y-5 animate-in fade-in zoom-in duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-gray/15">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-lightblue/15 text-lightblue">
-                  <Pencil className="w-5 h-5" />
-                </div>
-                <h3 className="font-bold text-lg text-darkblue dark:text-offwhite">
-                  Edit Block Coordinator
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsEditModalOpen(false)
-                  setEditingTarget(null)
-                }}
-                className="p-1.5 rounded-lg text-gray hover:text-darkblue dark:hover:text-offwhite hover:bg-gray/10 dark:hover:bg-gray/20"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {/* Edit Coordinator Global Modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false)
+          setEditingTarget(null)
+        }}
+        title="Edit Block Coordinator"
+        subtitle="Update coordinator details & jurisdiction"
+        icon={<Pencil className="w-5 h-5" />}
+        error={editFormError}
+      >
+        <form onSubmit={handleEditCoordinator} className="space-y-4">
+          <TextInput
+            label="Full Name"
+            placeholder="e.g. Ramesh Kumar"
+            required
+            value={editForm.name}
+            onChange={(e) =>
+              setEditForm((prev) => ({ ...prev, name: e.target.value }))
+            }
+          />
 
-            {editFormError && (
-              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-600 dark:text-red-400">
-                {editFormError}
-              </div>
-            )}
+          <TextInput
+            label="Block / Ward Name"
+            placeholder="e.g. North Block, Block A, Room 101-120"
+            required
+            value={editForm.block}
+            onChange={(e) =>
+              setEditForm((prev) => ({ ...prev, block: e.target.value }))
+            }
+          />
 
-            <form onSubmit={handleEditCoordinator} className="space-y-4">
-              <TextInput
-                label="Full Name"
-                placeholder="e.g. Ramesh Kumar"
-                required
-                value={editForm.name}
-                onChange={(e) =>
-                  setEditForm((prev) => ({ ...prev, name: e.target.value }))
-                }
-              />
+          <TextInput
+            label="Phone Number"
+            placeholder="e.g. +91 98765 43210"
+            type="tel"
+            value={editForm.phone_no}
+            onChange={(e) =>
+              setEditForm((prev) => ({ ...prev, phone_no: e.target.value }))
+            }
+          />
 
-              <TextInput
-                label="Block / Ward Name"
-                placeholder="e.g. North Block, Block A, Room 101-120"
-                required
-                value={editForm.block}
-                onChange={(e) =>
-                  setEditForm((prev) => ({ ...prev, block: e.target.value }))
-                }
-              />
-
-              <TextInput
-                label="Phone Number"
-                placeholder="e.g. +91 98765 43210"
-                type="tel"
-                value={editForm.phone_no}
-                onChange={(e) =>
-                  setEditForm((prev) => ({ ...prev, phone_no: e.target.value }))
-                }
-              />
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray/15">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setIsEditModalOpen(false)
-                    setEditingTarget(null)
-                  }}
-                  disabled={isEditing}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="sm"
-                  isLoading={isEditing}
-                >
-                  Update Coordinator
-                </Button>
-              </div>
-            </form>
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray/15">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setIsEditModalOpen(false)
+                setEditingTarget(null)
+              }}
+              disabled={isEditing}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              isLoading={isEditing}
+            >
+              Update Coordinator
+            </Button>
           </div>
-        </div>
-      )}
+        </form>
+      </Modal>
 
-      {/* Delete Coordinator Confirmation Modal */}
-      {isDeleteModalOpen && deletingTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="bg-white dark:bg-[#1a1d2e] rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-gray/20 space-y-5 animate-in fade-in zoom-in duration-200">
-            <div className="flex items-center gap-3 text-red-500">
-              <div className="p-2.5 rounded-2xl bg-red-500/15">
-                <Trash2 className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="font-bold text-lg text-darkblue dark:text-offwhite">
-                  Delete Coordinator
-                </h3>
-                <p className="text-xs text-gray">This action cannot be undone.</p>
-              </div>
-            </div>
-
-            {deleteError && (
-              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-600 dark:text-red-400">
-                {deleteError}
-              </div>
-            )}
-
-            <div className="p-3.5 rounded-2xl bg-offwhite dark:bg-[#151726] border border-gray/20 text-xs space-y-1">
+      {/* Delete Coordinator Global Confirm Modal */}
+      {deletingTarget && (
+        <ConfirmModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => {
+            setIsDeleteModalOpen(false)
+            setDeletingTarget(null)
+          }}
+          onConfirm={handleDeleteCoordinator}
+          title="Delete Coordinator"
+          subtitle="This action cannot be undone."
+          error={deleteError}
+          isLoading={isDeleting}
+          confirmText="Confirm Delete"
+          details={
+            <>
               <p className="font-semibold text-darkblue dark:text-offwhite">
                 {deletingTarget.name || 'Unnamed Coordinator'}
               </p>
               <p className="text-gray">{deletingTarget.block || 'Unassigned Block'}</p>
               {deletingTarget.phone_no && <p className="text-gray">{deletingTarget.phone_no}</p>}
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setIsDeleteModalOpen(false)
-                  setDeletingTarget(null)
-                }}
-                disabled={isDeleting}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="primary"
-                size="sm"
-                className="bg-red-600 hover:bg-red-700 text-white border-transparent"
-                onClick={handleDeleteCoordinator}
-                isLoading={isDeleting}
-              >
-                Confirm Delete
-              </Button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        />
       )}
     </div>
   )
