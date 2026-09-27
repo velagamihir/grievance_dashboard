@@ -20,7 +20,6 @@ import {
   Bus,
   Layers,
   Sparkles,
-  Lock,
   Mail,
   GraduationCap,
   Building,
@@ -63,6 +62,8 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
   const { user, signOutUser } = useAuth()
   const {
     role,
+    loading: permissionsLoading,
+    canViewAllGrievances,
     canCreateGrievance,
     canEditGrievance,
     canEditStatus,
@@ -99,7 +100,7 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
 
   const [sources, setSources] = useState<string[]>(['Form', 'Web Portal', 'Mobile App', 'Kiosk'])
 
-  // Fetch Grievances and Sources from Supabase
+  // Fetch Sources from Supabase
   const fetchSources = async () => {
     try {
       const { data, error } = await supabase
@@ -119,6 +120,12 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
   }
 
   const fetchGrievances = async () => {
+    if (!canViewAllGrievances) {
+      setGrievances([])
+      setLoading(false)
+      return
+    }
+
     try {
       setRefreshing(true)
       const { data, error } = await supabase
@@ -145,8 +152,18 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
 
   useEffect(() => {
     fetchSources()
-    fetchGrievances()
   }, [])
+
+  useEffect(() => {
+    if (!permissionsLoading) {
+      if (canViewAllGrievances) {
+        fetchGrievances()
+      } else {
+        setGrievances([])
+        setLoading(false)
+      }
+    }
+  }, [permissionsLoading, canViewAllGrievances])
 
   // 1. Inline Status Dropdown Change
   const handleStatusChange = async (grievanceId: number, newStatus: string) => {
@@ -521,7 +538,7 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
             subtitle="View, triage, and modify incident records"
             count={grievances.length}
             items={grievances}
-            isLoading={loading}
+            isLoading={loading || permissionsLoading}
             keyExtractor={(item) => item.id}
             searchable
             searchQuery={searchQuery}
@@ -551,7 +568,7 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
                   variant="outline"
                   size="sm"
                   onClick={handleExportToExcel}
-                  disabled={grievances.length === 0}
+                  disabled={!canViewAllGrievances || grievances.length === 0}
                   leftIcon={<Download className="w-4 h-4" />}
                   title="Export grievances to Excel / CSV"
                 >
@@ -562,32 +579,37 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
                   variant="outline"
                   size="sm"
                   onClick={fetchGrievances}
+                  disabled={!canViewAllGrievances}
                   isLoading={refreshing}
                   aria-label="Refresh list"
                 >
                   <RefreshCw className="w-4 h-4" />
                 </Button>
 
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={handleOpenAddModal}
-                  disabled={!canCreateGrievance}
-                  title={!canCreateGrievance ? 'Permission required to add grievances' : undefined}
-                  leftIcon={canCreateGrievance ? <Plus className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-                >
-                  Add Grievance
-                </Button>
+                {canCreateGrievance && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={handleOpenAddModal}
+                    leftIcon={<Plus className="w-4 h-4" />}
+                  >
+                    Add Grievance
+                  </Button>
+                )}
               </div>
             }
             emptyTitle={
-              grievances.length === 0
+              !canViewAllGrievances
+                ? 'Access Restricted'
+                : grievances.length === 0
                 ? 'No Grievances in Database'
                 : 'No Matching Grievances'
             }
             emptyDescription={
-              grievances.length === 0
-                ? 'No grievances have been registered in the database yet. Click below to file a new complaint.'
+              !canViewAllGrievances
+                ? 'You do not have permission to view grievances. Please contact your administrator to assign role permissions.'
+                : grievances.length === 0
+                ? 'No grievances have been registered in the database yet.'
                 : 'No grievance records match your current search and filter criteria.'
             }
             emptyActionLabel={canCreateGrievance ? 'File New Grievance' : undefined}

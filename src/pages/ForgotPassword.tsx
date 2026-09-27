@@ -52,13 +52,10 @@ export const ForgotPassword = ({ initialEmail = '', onBackToLogin, onSuccess }: 
 
     setIsLoading(true)
     try {
-      console.log('Sending password reset email to:', email.trim().toLowerCase())
       await resetPassword(email.trim().toLowerCase())
-      console.log('Firebase sendPasswordResetEmail call succeeded')
       setIsSubmitted(true)
       onSuccess?.(email.trim().toLowerCase())
     } catch (err: unknown) {
-      console.error('Firebase resetPassword error:', err)
       const firebaseError = err as { code?: string; message?: string }
       setGeneralError(mapFirebaseError(firebaseError.code || ''))
     } finally {
@@ -71,12 +68,9 @@ export const ForgotPassword = ({ initialEmail = '', onBackToLogin, onSuccess }: 
     setResendSuccess(false)
     setIsResending(true)
     try {
-      console.log('Resending password reset email to:', email.trim().toLowerCase())
       await resetPassword(email.trim().toLowerCase())
-      console.log('Firebase resendPasswordResetEmail call succeeded')
       setResendSuccess(true)
     } catch (err: unknown) {
-      console.error('Firebase resend error:', err)
       const firebaseError = err as { code?: string; message?: string }
       setGeneralError(mapFirebaseError(firebaseError.code || ''))
     } finally {
