@@ -60,7 +60,7 @@ export const Drawer: React.FC<DrawerProps> = ({
 
         let resolvedRoutes: RouteData[] = []
 
-        // 2. If user has a role, query role_routes
+        // 2. If user has an assigned role, query role_routes
         if (userRole) {
           console.log(`[Drawer] Querying role_routes for role: "${userRole}"...`)
           const { data: roleRoutes, error: routesError } = await supabase
@@ -91,24 +91,8 @@ export const Drawer: React.FC<DrawerProps> = ({
               resolvedRoutes = parsed
             }
           }
-        }
-
-        // 3. Fallback: If no role-specific routes found, query all active routes from the `routes` table
-        if (resolvedRoutes.length === 0) {
-          console.log('[Drawer] No role-specific routes matched. Fetching from `routes` table directly...')
-          const { data: allRoutesData, error: allRoutesErr } = await supabase
-            .from('routes')
-            .select('id, name, path, icon, sort_order')
-            .order('sort_order', { ascending: true })
-
-          if (allRoutesErr) {
-            console.error('[Drawer] Error querying `routes` table:', allRoutesErr.message)
-          } else {
-            console.log('[Drawer] `routes` table query result:', allRoutesData)
-            if (allRoutesData && allRoutesData.length > 0) {
-              resolvedRoutes = allRoutesData as RouteData[]
-            }
-          }
+        } else {
+          console.log('[Drawer] User has no role in profiles table. No routes authorized.')
         }
 
         console.log('[Drawer] Final resolved routes to display:', resolvedRoutes)
@@ -120,6 +104,9 @@ export const Drawer: React.FC<DrawerProps> = ({
       } catch (err) {
         console.error('[Drawer] Unexpected error loading navigation:', err)
         console.groupEnd()
+        if (isMounted) {
+          setRoutes([])
+        }
       } finally {
         if (isMounted) {
           setLoading(false)

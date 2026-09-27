@@ -24,6 +24,7 @@ import {
   Mail,
   GraduationCap,
   Building,
+  Download,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -44,6 +45,7 @@ import {
   initialGrievanceFormData,
   getStatusBadgeVariant,
   formatDate,
+  exportGrievancesToExcel,
 } from '../utils'
 import type {
   GrievancePageProps,
@@ -321,6 +323,20 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
     return { total, notYetStarted, inProgress, issueMailSent, finalMailSent, resolved }
   }, [grievances])
 
+  // Export Grievances to Excel / CSV
+  const handleExportToExcel = () => {
+    try {
+      if (grievances.length === 0) {
+        showToast('No grievances available to export.', 'info')
+        return
+      }
+      exportGrievancesToExcel(grievances)
+      showToast(`Exported ${grievances.length} grievance(s) to Excel!`, 'success')
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to export grievances.', 'error')
+    }
+  }
+
   return (
     <div className="min-h-screen bg-offwhite dark:bg-[#151726] text-darkblue dark:text-offwhite transition-colors duration-200">
       {/* Navigation Drawer */}
@@ -531,6 +547,17 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
             pageSize={6}
             headerActions={
               <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportToExcel}
+                  disabled={grievances.length === 0}
+                  leftIcon={<Download className="w-4 h-4" />}
+                  title="Export grievances to Excel / CSV"
+                >
+                  <span className="hidden sm:inline">Export Excel</span>
+                </Button>
+
                 <Button
                   variant="outline"
                   size="sm"
