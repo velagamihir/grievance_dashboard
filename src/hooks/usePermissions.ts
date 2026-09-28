@@ -14,6 +14,11 @@ import {
   checkCanCreateCoordinator,
   checkCanEditCoordinator,
   checkCanDeleteCoordinator,
+  checkCanViewRoles,
+  checkCanCreateRole,
+  checkCanEditRole,
+  checkCanManagePermissions,
+  checkCanDeleteRole,
   isAdminOrSuperAdmin,
   isSuperAdmin,
 } from '../utils'
@@ -44,6 +49,13 @@ export interface UserPermissionsState {
   canAddCoordinator: boolean
   canEditCoordinator: boolean
   canDeleteCoordinator: boolean
+  canViewRoles: boolean
+  canCreateRole: boolean
+  canAddRole: boolean
+  canEditRole: boolean
+  canChangePermissions: boolean
+  canManagePermissions: boolean
+  canDeleteRole: boolean
   refreshPermissions: () => Promise<void>
 }
 
@@ -221,6 +233,14 @@ export function usePermissions(): UserPermissionsState {
   const canEditCoordinator = isSuper || checkCanEditCoordinator(permissions)
   const canDeleteCoordinator = isSuper || checkCanDeleteCoordinator(permissions)
 
+  const canViewRoles = isSuper || isSuperOrAdmin || checkCanViewRoles(permissions)
+  const canCreateRole = isSuper || isSuperOrAdmin || checkCanCreateRole(permissions)
+  const canAddRole = canCreateRole
+  const canEditRole = isSuper || isSuperOrAdmin || checkCanEditRole(permissions)
+  const canChangePermissions = isSuper || isSuperOrAdmin || checkCanManagePermissions(permissions)
+  const canManagePermissions = canChangePermissions
+  const canDeleteRole = isSuper || isSuperOrAdmin || checkCanDeleteRole(permissions)
+
   return {
     role,
     permissions,
@@ -241,6 +261,13 @@ export function usePermissions(): UserPermissionsState {
     canAddCoordinator,
     canEditCoordinator,
     canDeleteCoordinator,
+    canViewRoles,
+    canCreateRole,
+    canAddRole,
+    canEditRole,
+    canChangePermissions,
+    canManagePermissions,
+    canDeleteRole,
     refreshPermissions: fetchPermissions,
   }
 }

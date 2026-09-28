@@ -6,6 +6,7 @@ import { ForgotPassword } from './pages/ForgotPassword'
 import { Home } from './pages/Home'
 import { BlockCoordinators } from './pages/BlockCoordinators'
 import { GrievancePage } from './pages/GrievancePage'
+import { RolesPage } from './pages/RolesPage'
 import type { MainRouterProps } from './types'
 
 function MainRouter({ isDark, onToggleTheme }: MainRouterProps) {
@@ -94,6 +95,22 @@ function MainRouter({ isDark, onToggleTheme }: MainRouterProps) {
   ) {
     return (
       <BlockCoordinators
+        isDark={isDark}
+        onToggleTheme={onToggleTheme}
+        currentPath={currentPath}
+        onNavigate={handleNavigate}
+      />
+    )
+  }
+
+  if (
+    currentPath === '/roles' ||
+    currentPath === '/permissions' ||
+    currentPath.startsWith('/roles') ||
+    currentPath.startsWith('/permissions')
+  ) {
+    return (
+      <RolesPage
         isDark={isDark}
         onToggleTheme={onToggleTheme}
         currentPath={currentPath}

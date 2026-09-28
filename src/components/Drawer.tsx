@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo, useCallback } from 'react'
 import {
   X,
   Shield,
@@ -7,6 +7,7 @@ import {
   Layers,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { usePermissions } from '../hooks/usePermissions'
 import { supabase } from '../lib/supabase'
 import { resolveIcon } from '../utils'
 import type { RouteData, RoleRouteItem, DrawerProps } from '../types'
@@ -18,9 +19,151 @@ export const Drawer: React.FC<DrawerProps> = ({
   onNavigate,
 }) => {
   const { user, signOutUser } = useAuth()
+  const {
+    role: permRole,
+    permissions,
+    isSuperAdmin,
+    canViewAllGrievances,
+    canCreateGrievance,
+    canEditGrievance,
+    canEditStatus,
+    canDeleteGrievance,
+    canViewCoordinators,
+    canCreateCoordinator,
+    canEditCoordinator,
+    canDeleteCoordinator,
+    canViewRoles,
+    canCreateRole,
+    canEditRole,
+    canChangePermissions,
+    canDeleteRole,
+    loading: permissionsLoading,
+  } = usePermissions()
+
   const [role, setRole] = useState<string | null>(null)
-  const [routes, setRoutes] = useState<RouteData[]>([])
+  const [rawRoutes, setRawRoutes] = useState<RouteData[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Determine if user has at least one permission in a given route category
+  const isRoutePermitted = useCallback(
+    (route: RouteData): boolean => {
+      if (isSuperAdmin) return true
+
+      const p = (route.path || '').toLowerCase().trim()
+      const name = (route.name || '').toLowerCase().trim()
+
+      // 1. Dashboard / Home - general access
+      if (
+        p === '/' ||
+        p === '/dashboard' ||
+        p.includes('dashboard') ||
+        name.includes('dashboard') ||
+        name.includes('home')
+      ) {
+        return true
+      }
+
+      // 2. Grievances category
+      if (
+        p === '/grievances' ||
+        p === '/grievance' ||
+        p === '/complaints' ||
+        p.includes('grievance') ||
+        name.includes('grievance')
+      ) {
+        const hasGrievancePerms =
+          canViewAllGrievances ||
+          canCreateGrievance ||
+          canEditGrievance ||
+          canEditStatus ||
+          canDeleteGrievance ||
+          permissions.some((perm) => (perm.resource || '').toLowerCase().trim() === 'grievances')
+        return hasGrievancePerms
+      }
+
+      // 3. Block Coordinators category
+      if (
+        p === '/block_coordinators' ||
+        p === '/block-coordinators' ||
+        p.includes('coordinator') ||
+        name.includes('coordinator')
+      ) {
+        const hasCoordinatorPerms =
+          canViewCoordinators ||
+          canCreateCoordinator ||
+          canEditCoordinator ||
+          canDeleteCoordinator ||
+          permissions.some(
+            (perm) =>
+              (perm.resource || '').toLowerCase().trim() === 'block_coordinators' ||
+              (perm.resource || '').toLowerCase().trim() === 'coordinators'
+          )
+        return hasCoordinatorPerms
+      }
+
+      // 4. Roles & Permissions category
+      if (
+        p === '/roles' ||
+        p === '/permissions' ||
+        p.includes('role') ||
+        name.includes('role') ||
+        name.includes('permission')
+      ) {
+        const hasRolePerms =
+          canViewRoles ||
+          canCreateRole ||
+          canEditRole ||
+          canChangePermissions ||
+          canDeleteRole ||
+          permissions.some(
+            (perm) =>
+              (perm.resource || '').toLowerCase().trim() === 'roles' ||
+              (perm.resource || '').toLowerCase().trim() === 'permissions'
+          )
+        return hasRolePerms
+      }
+
+      // 5. Users category
+      if (p === '/users' || p.includes('user') || name.includes('user')) {
+        return permissions.some((perm) => (perm.resource || '').toLowerCase().trim() === 'users')
+      }
+
+      // 6. Generic resource match from path or name
+      const resourceKey = p.replace(/^\//, '').replace(/[_\s-]+/g, '_')
+      if (resourceKey) {
+        const hasResourcePerm = permissions.some((perm) => {
+          const pRes = (perm.resource || '').toLowerCase().replace(/[_\s-]+/g, '_').trim()
+          return pRes === resourceKey || pRes.startsWith(resourceKey) || resourceKey.startsWith(pRes)
+        })
+        return hasResourcePerm
+      }
+
+      return false
+    },
+    [
+      isSuperAdmin,
+      canViewAllGrievances,
+      canCreateGrievance,
+      canEditGrievance,
+      canEditStatus,
+      canDeleteGrievance,
+      canViewCoordinators,
+      canCreateCoordinator,
+      canEditCoordinator,
+      canDeleteCoordinator,
+      canViewRoles,
+      canCreateRole,
+      canEditRole,
+      canChangePermissions,
+      canDeleteRole,
+      permissions,
+    ]
+  )
+
+  // Filtered routes based on active category permissions
+  const routes = useMemo(() => {
+    return rawRoutes.filter(isRoutePermitted)
+  }, [rawRoutes, isRoutePermitted])
 
   useEffect(() => {
     let isMounted = true
@@ -29,7 +172,7 @@ export const Drawer: React.FC<DrawerProps> = ({
       if (!user) {
         if (isMounted) {
           setRole(null)
-          setRoutes([])
+          setRawRoutes([])
           setLoading(false)
         }
         return
@@ -45,7 +188,7 @@ export const Drawer: React.FC<DrawerProps> = ({
           .eq('firebase_uid', user.uid)
           .maybeSingle()
 
-        const userRole = profile?.role || null
+        const userRole = profile?.role || permRole || null
         if (isMounted) {
           setRole(userRole)
         }
@@ -79,12 +222,24 @@ export const Drawer: React.FC<DrawerProps> = ({
           }
         }
 
+        // Include Roles & Permissions route candidate if user is admin / super_admin
+        const normalizedRole = userRole?.toLowerCase().trim() || ''
+        const isAdmin = normalizedRole === 'super_admin' || normalizedRole === 'admin'
+        if (isAdmin && !resolvedRoutes.some((r) => r.path === '/roles')) {
+          resolvedRoutes.push({
+            name: 'Roles & Permissions',
+            path: '/roles',
+            icon: 'shield',
+            sort_order: 99,
+          })
+        }
+
         if (isMounted) {
-          setRoutes(resolvedRoutes)
+          setRawRoutes(resolvedRoutes)
         }
       } catch {
         if (isMounted) {
-          setRoutes([])
+          setRawRoutes([])
         }
       } finally {
         if (isMounted) {
@@ -93,12 +248,14 @@ export const Drawer: React.FC<DrawerProps> = ({
       }
     }
 
-    fetchUserRoutes()
+    if (!permissionsLoading) {
+      fetchUserRoutes()
+    }
 
     return () => {
       isMounted = false
     }
-  }, [user])
+  }, [user, permRole, permissionsLoading])
 
   const handleItemClick = (path: string) => {
     if (onNavigate) {

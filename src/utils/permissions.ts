@@ -268,3 +268,88 @@ export const checkCanViewCoordinators = (
     hasPermissionName(permissions, 'view_block_coordinators')
   )
 }
+
+/**
+ * Checks if user has permission to view roles and permissions.
+ */
+export const checkCanViewRoles = (
+  permissions: PermissionRow[] | null | undefined
+): boolean => {
+  return (
+    hasPermission(permissions, 'roles', 'view') ||
+    hasPermission(permissions, 'roles', 'read') ||
+    hasPermission(permissions, 'users', 'view') ||
+    hasPermissionName(permissions, 'View Roles') ||
+    hasPermissionName(permissions, 'View Users') ||
+    hasPermissionName(permissions, 'view_roles')
+  )
+}
+
+/**
+ * Checks if user has permission to create/add new roles.
+ */
+export const checkCanCreateRole = (
+  permissions: PermissionRow[] | null | undefined
+): boolean => {
+  return (
+    hasPermission(permissions, 'roles', 'add') ||
+    hasPermission(permissions, 'roles', 'create') ||
+    hasPermission(permissions, 'roles', 'insert') ||
+    hasPermission(permissions, 'users', 'add') ||
+    hasPermissionName(permissions, 'Add Roles') ||
+    hasPermissionName(permissions, 'Add Users') ||
+    hasPermissionName(permissions, 'create_role')
+  )
+}
+
+/**
+ * Checks if user has permission to edit role details.
+ */
+export const checkCanEditRole = (
+  permissions: PermissionRow[] | null | undefined
+): boolean => {
+  return (
+    hasPermission(permissions, 'roles', 'edit') ||
+    hasPermission(permissions, 'roles', 'update') ||
+    hasPermission(permissions, 'users', 'edit') ||
+    hasPermissionName(permissions, 'Edit Roles') ||
+    hasPermissionName(permissions, 'Edit Users') ||
+    hasPermissionName(permissions, 'edit_role')
+  )
+}
+
+/**
+ * Checks if user has permission to manage/change role permissions.
+ */
+export const checkCanManagePermissions = (
+  permissions: PermissionRow[] | null | undefined
+): boolean => {
+  return (
+    hasPermission(permissions, 'permissions', 'edit') ||
+    hasPermission(permissions, 'permissions', 'update') ||
+    hasPermission(permissions, 'role_permissions', 'manage') ||
+    hasPermission(permissions, 'roles', 'edit') ||
+    hasPermission(permissions, 'users', 'edit') ||
+    hasPermissionName(permissions, 'Manage Permissions') ||
+    hasPermissionName(permissions, 'Edit Permissions') ||
+    hasPermissionName(permissions, 'Edit Roles') ||
+    hasPermissionName(permissions, 'manage_permissions')
+  )
+}
+
+/**
+ * Checks if user has permission to delete roles.
+ */
+export const checkCanDeleteRole = (
+  permissions: PermissionRow[] | null | undefined
+): boolean => {
+  return (
+    hasPermission(permissions, 'roles', 'delete') ||
+    hasPermission(permissions, 'roles', 'remove') ||
+    hasPermission(permissions, 'users', 'delete') ||
+    hasPermissionName(permissions, 'Delete Roles') ||
+    hasPermissionName(permissions, 'Delete Users') ||
+    hasPermissionName(permissions, 'delete_role')
+  )
+}
+

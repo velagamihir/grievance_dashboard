@@ -387,6 +387,38 @@ export interface BlockCoordinatorsProps {
   onNavigate?: (path: string) => void
 }
 
+export interface RolesPageProps {
+  isDark: boolean
+  onToggleTheme: () => void
+  currentPath?: string
+  onNavigate?: (path: string) => void
+}
+
+export interface RoleWithPermissions extends RoleRow {
+  permissionIds: number[]
+  permissions: PermissionRow[]
+  assignedUsersCount?: number
+}
+
+export interface CreateRoleFormData {
+  name: string
+  description: string
+  permissionIds: number[]
+}
+
+export interface UpdateRoleFormData {
+  name: string
+  description: string
+}
+
+export interface RoleStatItem {
+  title: string
+  count: string | number
+  change: string
+  icon: ComponentType<{ className?: string }>
+  color: string
+}
+
 export interface Coordinator {
   id: string
   name: string
