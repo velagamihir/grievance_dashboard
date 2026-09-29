@@ -96,7 +96,6 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
       placeholder: 'Auto-filled from account',
       type: 'text',
       required: true,
-      disabled: true,
       helperText: 'Auto-filled from logged-in user profile (read-only)',
       leftIcon: <User className="w-4 h-4" />,
       colSpan: 1,
@@ -107,7 +106,6 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
       placeholder: 'Auto-filled from account',
       type: 'email',
       required: true,
-      disabled: true,
       helperText: 'Auto-filled from logged-in user profile (read-only)',
       leftIcon: <Mail className="w-4 h-4" />,
       colSpan: 1,
@@ -127,6 +125,7 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
       type: 'select',
       leftIcon: <Tag className="w-4 h-4" />,
       options: sources,
+      required: true,
       colSpan: 1,
     },
     {
@@ -134,6 +133,7 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
       label: 'Initial Status',
       type: 'select',
       disabled: readOnlyStatus,
+      required: true,
       options: STATUS_OPTIONS.map((s) => s.value),
       colSpan: 1,
     },
@@ -300,10 +300,10 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
   const effectiveAlert =
     !canCreateGrievance && !permissionsLoading
       ? {
-          type: 'error' as const,
-          message:
-            'Permission Denied: Your assigned role does not have permission to file new grievances.',
-        }
+        type: 'error' as const,
+        message:
+          'Permission Denied: Your assigned role does not have permission to file new grievances.',
+      }
       : alert
 
   return (
