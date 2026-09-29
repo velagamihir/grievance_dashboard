@@ -52,6 +52,18 @@ const WORKFLOW_1_URL =
 const WORKFLOW_2_URL =
   'https://defaultf6981b0a39154628be7e368196415f.8f.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/03/workflows/d37f8e2b01614d5fa3e273a2ba60c8bb/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=tpqTSnHDMl3WhYF3PMAUyX9TgSMxR3OwLgFKjkA2H-g'
 
+const isIssueMailStatus = (status?: string | null): boolean => {
+  if (!status) return false
+  const s = status.trim().toLowerCase()
+  return s === 'issue mail to be sent' || s === 'issue mail sent' || s.includes('issue mail')
+}
+
+const isFinalMailStatus = (status?: string | null): boolean => {
+  if (!status) return false
+  const s = status.trim().toLowerCase()
+  return s === 'final mail to be sent' || s === 'final mail sent' || s.includes('final mail')
+}
+
 const ExpandableDescription: React.FC<{ text?: string | null }> = ({ text }) => {
   const [isExpanded, setIsExpanded] = useState(false)
 
@@ -159,6 +171,14 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
       return
     }
 
+    if (!isIssueMailStatus(item.status)) {
+      setToast({
+        message: 'Action 1 ("Send Issue Mail") can only be triggered when status is "Issue Mail to be Sent".',
+        type: 'error',
+      })
+      return
+    }
+
     if (!item.email) {
       setToast({
         message: 'No email address found for this grievance.',
@@ -189,13 +209,13 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
       }
 
       setToast({
-        message: `Workflow 1 triggered successfully for ${item.name || item.email}!`,
+        message: `Issue mail workflow triggered successfully for ${item.name || item.email}!`,
         type: 'success',
       })
     } catch (err: any) {
       console.error('Error triggering Workflow 1:', err)
       setToast({
-        message: `Failed to trigger Workflow 1: ${err?.message || 'Network error'}`,
+        message: `Failed to trigger Issue Mail Workflow: ${err?.message || 'Network error'}`,
         type: 'error',
       })
     } finally {
@@ -207,6 +227,14 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
     if (!canTriggerWorkflow2) {
       setToast({
         message: 'Permission Denied: You do not have permission to trigger Workflow 2.',
+        type: 'error',
+      })
+      return
+    }
+
+    if (!isFinalMailStatus(item.status)) {
+      setToast({
+        message: 'Action 2 ("Send Resolution Mail") can only be triggered when status is "Final Mail to be Sent".',
         type: 'error',
       })
       return
@@ -626,47 +654,73 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
                         </span>
                       </div>
 
-                      {/* Workflow 1 Trigger */}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleTriggerWorkflow1(item)}
-                        disabled={!canTriggerWorkflow1 || Boolean(triggeringWorkflow[`${item.id}-flow1`])}
-                        title={
-                          !canTriggerWorkflow1
-                            ? 'Permission Denied: You do not have permission to trigger Workflow 1'
-                            : `Trigger Workflow 1 (POST request with name & email) for ${item.name || item.email}`
-                        }
-                        className="p-2 text-lightblue hover:text-lightblue hover:bg-lightblue/10 dark:hover:bg-lightblue/20 border-lightblue/30"
-                      >
-                        {triggeringWorkflow[`${item.id}-flow1`] ? (
-                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Send className="w-3.5 h-3.5" />
-                        )}
-                        <span className="hidden md:inline ml-1 text-xs">Send Issue Mail</span>
-                      </Button>
+                      {/* Workflow 1 Trigger - Issue Mail */}
+                      {(() => {
+                        const isEligible = isIssueMailStatus(item.status)
+                        const isSubmitting = Boolean(triggeringWorkflow[`${item.id}-flow1`])
+                        const isDisabled = !canTriggerWorkflow1 || !isEligible || isSubmitting
+                        const title = !canTriggerWorkflow1
+                          ? 'Permission Denied: You do not have permission to trigger Workflow 1'
+                          : !isEligible
+                            ? `Only available when status is 'Issue Mail to be Sent' (Current: ${item.status || 'Pending'})`
+                            : `Send Issue Mail (Power Automate) for ${item.name || item.email}`
 
-                      {/* Workflow 2 Trigger */}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleTriggerWorkflow2(item)}
-                        disabled={!canTriggerWorkflow2 || Boolean(triggeringWorkflow[`${item.id}-flow2`])}
-                        title={
-                          !canTriggerWorkflow2
-                            ? 'Permission Denied: You do not have permission to trigger Workflow 2'
-                            : `Trigger Workflow 2 for ${item.name || item.email}`
-                        }
-                        className="p-2 text-orange hover:text-orange hover:bg-orange/10 dark:hover:bg-orange/20 border-orange/30"
-                      >
-                        {triggeringWorkflow[`${item.id}-flow2`] ? (
-                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Send className="w-3.5 h-3.5" />
-                        )}
-                        <span className="hidden md:inline ml-1 text-xs">Send Resolution Mail</span>
-                      </Button>
+                        return (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleTriggerWorkflow1(item)}
+                            disabled={isDisabled}
+                            title={title}
+                            className={`p-2 transition-all ${
+                              isEligible && canTriggerWorkflow1
+                                ? 'text-lightblue hover:text-lightblue hover:bg-lightblue/10 dark:hover:bg-lightblue/20 border-lightblue/40 shadow-xs'
+                                : 'opacity-40 cursor-not-allowed border-gray/20 text-gray'
+                            }`}
+                          >
+                            {isSubmitting ? (
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Send className="w-3.5 h-3.5" />
+                            )}
+                            <span className="hidden md:inline ml-1 text-xs">Send Issue Mail</span>
+                          </Button>
+                        )
+                      })()}
+
+                      {/* Workflow 2 Trigger - Resolution / Final Mail */}
+                      {(() => {
+                        const isEligible = isFinalMailStatus(item.status)
+                        const isSubmitting = Boolean(triggeringWorkflow[`${item.id}-flow2`])
+                        const isDisabled = !canTriggerWorkflow2 || !isEligible || isSubmitting
+                        const title = !canTriggerWorkflow2
+                          ? 'Permission Denied: You do not have permission to trigger Workflow 2'
+                          : !isEligible
+                            ? `Only available when status is 'Final Mail to be Sent' (Current: ${item.status || 'Pending'})`
+                            : `Send Resolution Mail (Power Automate) for ${item.name || item.email}`
+
+                        return (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleTriggerWorkflow2(item)}
+                            disabled={isDisabled}
+                            title={title}
+                            className={`p-2 transition-all ${
+                              isEligible && canTriggerWorkflow2
+                                ? 'text-orange hover:text-orange hover:bg-orange/10 dark:hover:bg-orange/20 border-orange/40 shadow-xs'
+                                : 'opacity-40 cursor-not-allowed border-gray/20 text-gray'
+                            }`}
+                          >
+                            {isSubmitting ? (
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Send className="w-3.5 h-3.5" />
+                            )}
+                            <span className="hidden md:inline ml-1 text-xs">Send Resolution Mail</span>
+                          </Button>
+                        )
+                      })()}
 
                       {/* Edit Details Action */}
                       <Button
