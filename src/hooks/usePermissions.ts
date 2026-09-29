@@ -19,6 +19,9 @@ import {
   checkCanEditRole,
   checkCanManagePermissions,
   checkCanDeleteRole,
+  checkCanTriggerWorkflow1,
+  checkCanTriggerWorkflow2,
+  checkCanTriggerWorkflows,
   isAdminOrSuperAdmin,
   isSuperAdmin,
 } from '../utils'
@@ -43,6 +46,9 @@ export interface UserPermissionsState {
   canEditStatus: boolean
   canDeleteGrievance: boolean
   canViewAllGrievances: boolean
+  canTriggerWorkflow1: boolean
+  canTriggerWorkflow2: boolean
+  canTriggerWorkflows: boolean
   canManageCoordinators: boolean
   canViewCoordinators: boolean
   canCreateCoordinator: boolean
@@ -226,6 +232,9 @@ export function usePermissions(): UserPermissionsState {
   const canEditStatus = isSuper || checkCanEditStatus(permissions)
   const canDeleteGrievance = isSuper || checkCanDeleteGrievance(permissions)
   const canViewAllGrievances = isSuper || checkCanViewAllGrievances(permissions)
+  const canTriggerWorkflow1 = isSuper || isSuperOrAdmin || checkCanTriggerWorkflow1(permissions)
+  const canTriggerWorkflow2 = isSuper || isSuperOrAdmin || checkCanTriggerWorkflow2(permissions)
+  const canTriggerWorkflows = isSuper || isSuperOrAdmin || checkCanTriggerWorkflows(permissions)
   const canManageCoordinators = isSuper || checkCanManageCoordinators(permissions)
   const canViewCoordinators = isSuper || checkCanViewCoordinators(permissions)
   const canCreateCoordinator = isSuper || checkCanCreateCoordinator(permissions)
@@ -255,6 +264,9 @@ export function usePermissions(): UserPermissionsState {
     canEditStatus,
     canDeleteGrievance,
     canViewAllGrievances,
+    canTriggerWorkflow1,
+    canTriggerWorkflow2,
+    canTriggerWorkflows,
     canManageCoordinators,
     canViewCoordinators,
     canCreateCoordinator,

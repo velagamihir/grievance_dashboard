@@ -353,3 +353,52 @@ export const checkCanDeleteRole = (
   )
 }
 
+/**
+ * Checks if user has permission to trigger Grievance Workflow 1 (Action 1).
+ * Matches: resource="grievances" action="trigger_workflow_1" | "trigger_workflow", or name="Trigger Workflow 1".
+ */
+export const checkCanTriggerWorkflow1 = (
+  permissions: PermissionRow[] | null | undefined
+): boolean => {
+  return (
+    hasPermission(permissions, 'grievances', 'trigger_workflow_1') ||
+    hasPermission(permissions, 'grievances', 'trigger_workflow') ||
+    hasPermission(permissions, 'grievances', 'trigger_action') ||
+    hasPermissionName(permissions, 'Trigger Workflow 1') ||
+    hasPermissionName(permissions, 'Trigger Grievance Action 1') ||
+    hasPermissionName(permissions, 'trigger_workflow_1')
+  )
+}
+
+/**
+ * Checks if user has permission to trigger Grievance Workflow 2 (Action 2).
+ * Matches: resource="grievances" action="trigger_workflow_2" | "trigger_workflow", or name="Trigger Workflow 2".
+ */
+export const checkCanTriggerWorkflow2 = (
+  permissions: PermissionRow[] | null | undefined
+): boolean => {
+  return (
+    hasPermission(permissions, 'grievances', 'trigger_workflow_2') ||
+    hasPermission(permissions, 'grievances', 'trigger_workflow') ||
+    hasPermission(permissions, 'grievances', 'trigger_action') ||
+    hasPermissionName(permissions, 'Trigger Workflow 2') ||
+    hasPermissionName(permissions, 'Trigger Grievance Action 2') ||
+    hasPermissionName(permissions, 'trigger_workflow_2')
+  )
+}
+
+/**
+ * Generic check if user has permission to trigger grievance workflows.
+ */
+export const checkCanTriggerWorkflows = (
+  permissions: PermissionRow[] | null | undefined
+): boolean => {
+  return (
+    checkCanTriggerWorkflow1(permissions) ||
+    checkCanTriggerWorkflow2(permissions) ||
+    hasPermission(permissions, 'grievances', 'trigger_workflow') ||
+    hasPermissionName(permissions, 'Trigger Workflow Actions')
+  )
+}
+
+

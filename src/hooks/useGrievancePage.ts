@@ -29,6 +29,9 @@ export function useGrievancePage() {
     canEditGrievance,
     canEditStatus,
     canDeleteGrievance,
+    canTriggerWorkflow1,
+    canTriggerWorkflow2,
+    canTriggerWorkflows,
   } = usePermissions()
 
   const [grievances, setGrievances] = useState<FormResponseRow[]>([])
@@ -422,6 +425,9 @@ export function useGrievancePage() {
     canEditGrievance,
     canEditStatus,
     canDeleteGrievance,
+    canTriggerWorkflow1,
+    canTriggerWorkflow2,
+    canTriggerWorkflows,
     permissionsLoading,
     role,
     user,

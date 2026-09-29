@@ -20,6 +20,7 @@ import {
   Building,
   Download,
   ChevronDown,
+  Send,
 } from 'lucide-react'
 import { useDocumentTitle, useGrievancePage } from '../hooks'
 import {
@@ -45,6 +46,12 @@ import type {
   FormResponseRow,
 } from '../types'
 
+const WORKFLOW_1_URL =
+  'https://defaultf6981b0a39154628be7e368196415f.8f.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/24/workflows/39cd03b882604c9688cb5736fc47290e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=KKCJqNkdCwhh0_o5e7_XyOkeLA_9rDFvfmRtmYdnZNc'
+
+const WORKFLOW_2_URL =
+  'https://defaultf6981b0a39154628be7e368196415f.8f.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/03/workflows/d37f8e2b01614d5fa3e273a2ba60c8bb/triggers/manual/paths/invoke?api-version=1'
+
 const ExpandableDescription: React.FC<{ text?: string | null }> = ({ text }) => {
   const [isExpanded, setIsExpanded] = useState(false)
 
@@ -55,9 +62,8 @@ const ExpandableDescription: React.FC<{ text?: string | null }> = ({ text }) => 
   return (
     <div className="mt-2 bg-offwhite/70 dark:bg-[#151726]/60 p-3 rounded-xl border border-gray/10">
       <p
-        className={`text-xs sm:text-sm text-darkblue/90 dark:text-offwhite/90 leading-relaxed whitespace-pre-line ${
-          !isExpanded ? 'line-clamp-2 sm:line-clamp-3' : ''
-        }`}
+        className={`text-xs sm:text-sm text-darkblue/90 dark:text-offwhite/90 leading-relaxed whitespace-pre-line ${!isExpanded ? 'line-clamp-2 sm:line-clamp-3' : ''
+          }`}
       >
         {text}
       </p>
@@ -72,9 +78,8 @@ const ExpandableDescription: React.FC<{ text?: string | null }> = ({ text }) => 
         >
           <span>{isExpanded ? 'Show less' : 'Show more'}</span>
           <ChevronDown
-            className={`w-3.5 h-3.5 transition-transform duration-200 ${
-              isExpanded ? 'rotate-180' : ''
-            }`}
+            className={`w-3.5 h-3.5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''
+              }`}
           />
         </button>
       )}
@@ -91,6 +96,7 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
   useDocumentTitle('Grievances | Grievance Portal')
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [triggeringWorkflow, setTriggeringWorkflow] = useState<Record<string, boolean>>({})
 
   // Extracted custom hook containing all functions, state, and API operations
   const {
@@ -118,6 +124,8 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
     canEditGrievance,
     canEditStatus,
     canDeleteGrievance,
+    canTriggerWorkflow1,
+    canTriggerWorkflow2,
     permissionsLoading,
     role,
     user,
@@ -141,6 +149,120 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
     handleExportToExcel,
     handleGrievanceCreated,
   } = useGrievancePage()
+
+  const handleTriggerWorkflow1 = async (item: FormResponseRow) => {
+    if (!canTriggerWorkflow1) {
+      setToast({
+        message: 'Permission Denied: You do not have permission to trigger Workflow 1.',
+        type: 'error',
+      })
+      return
+    }
+
+    if (!item.email) {
+      setToast({
+        message: 'No email address found for this grievance.',
+        type: 'error',
+      })
+      return
+    }
+
+    const key = `${item.id}-flow1`
+    setTriggeringWorkflow((prev) => ({ ...prev, [key]: true }))
+
+    try {
+      const payload = {
+        name: item.name || 'Anonymous',
+        email: item.email || '',
+      }
+
+      const res = await fetch(WORKFLOW_1_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        throw new Error(`Request failed with status ${res.status}`)
+      }
+
+      setToast({
+        message: `Workflow 1 triggered successfully for ${item.name || item.email}!`,
+        type: 'success',
+      })
+    } catch (err: any) {
+      console.error('Error triggering Workflow 1:', err)
+      setToast({
+        message: `Failed to trigger Workflow 1: ${err?.message || 'Network error'}`,
+        type: 'error',
+      })
+    } finally {
+      setTriggeringWorkflow((prev) => ({ ...prev, [key]: false }))
+    }
+  }
+
+  const handleTriggerWorkflow2 = async (item: FormResponseRow) => {
+    if (!canTriggerWorkflow2) {
+      setToast({
+        message: 'Permission Denied: You do not have permission to trigger Workflow 2.',
+        type: 'error',
+      })
+      return
+    }
+
+    if (!WORKFLOW_2_URL) {
+      setToast({
+        message: 'Workflow 2 API URL is pending configuration. Please share the URL to connect it.',
+        type: 'info',
+      })
+      return
+    }
+
+    if (!item.email) {
+      setToast({
+        message: 'No email address found for this grievance.',
+        type: 'error',
+      })
+      return
+    }
+
+    const key = `${item.id}-flow2`
+    setTriggeringWorkflow((prev) => ({ ...prev, [key]: true }))
+
+    try {
+      const payload = {
+        name: item.name || 'Anonymous',
+        email: item.email || '',
+      }
+
+      const res = await fetch(WORKFLOW_2_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        throw new Error(`Request failed with status ${res.status}`)
+      }
+
+      setToast({
+        message: `Workflow 2 triggered successfully for ${item.name || item.email}!`,
+        type: 'success',
+      })
+    } catch (err: any) {
+      console.error('Error triggering Workflow 2:', err)
+      setToast({
+        message: `Failed to trigger Workflow 2: ${err?.message || 'Network error'}`,
+        type: 'error',
+      })
+    } finally {
+      setTriggeringWorkflow((prev) => ({ ...prev, [key]: false }))
+    }
+  }
 
   return (
     <div className="min-h-screen bg-offwhite dark:bg-[#151726] text-darkblue dark:text-offwhite transition-colors duration-200">
@@ -503,6 +625,48 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
                           ▾
                         </span>
                       </div>
+
+                      {/* Workflow 1 Trigger */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleTriggerWorkflow1(item)}
+                        disabled={!canTriggerWorkflow1 || Boolean(triggeringWorkflow[`${item.id}-flow1`])}
+                        title={
+                          !canTriggerWorkflow1
+                            ? 'Permission Denied: You do not have permission to trigger Workflow 1'
+                            : `Trigger Workflow 1 (POST request with name & email) for ${item.name || item.email}`
+                        }
+                        className="p-2 text-lightblue hover:text-lightblue hover:bg-lightblue/10 dark:hover:bg-lightblue/20 border-lightblue/30"
+                      >
+                        {triggeringWorkflow[`${item.id}-flow1`] ? (
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Send className="w-3.5 h-3.5" />
+                        )}
+                        <span className="hidden md:inline ml-1 text-xs">Send Issue Mail</span>
+                      </Button>
+
+                      {/* Workflow 2 Trigger */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleTriggerWorkflow2(item)}
+                        disabled={!canTriggerWorkflow2 || Boolean(triggeringWorkflow[`${item.id}-flow2`])}
+                        title={
+                          !canTriggerWorkflow2
+                            ? 'Permission Denied: You do not have permission to trigger Workflow 2'
+                            : `Trigger Workflow 2 for ${item.name || item.email}`
+                        }
+                        className="p-2 text-orange hover:text-orange hover:bg-orange/10 dark:hover:bg-orange/20 border-orange/30"
+                      >
+                        {triggeringWorkflow[`${item.id}-flow2`] ? (
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Send className="w-3.5 h-3.5" />
+                        )}
+                        <span className="hidden md:inline ml-1 text-xs">Send Resolution Mail</span>
+                      </Button>
 
                       {/* Edit Details Action */}
                       <Button
