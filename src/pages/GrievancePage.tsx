@@ -50,7 +50,7 @@ const WORKFLOW_1_URL =
   'https://defaultf6981b0a39154628be7e368196415f.8f.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/24/workflows/39cd03b882604c9688cb5736fc47290e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=KKCJqNkdCwhh0_o5e7_XyOkeLA_9rDFvfmRtmYdnZNc'
 
 const WORKFLOW_2_URL =
-  'https://defaultf6981b0a39154628be7e368196415f.8f.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/03/workflows/d37f8e2b01614d5fa3e273a2ba60c8bb/triggers/manual/paths/invoke?api-version=1'
+  'https://defaultf6981b0a39154628be7e368196415f.8f.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/03/workflows/d37f8e2b01614d5fa3e273a2ba60c8bb/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=tpqTSnHDMl3WhYF3PMAUyX9TgSMxR3OwLgFKjkA2H-g'
 
 const ExpandableDescription: React.FC<{ text?: string | null }> = ({ text }) => {
   const [isExpanded, setIsExpanded] = useState(false)
