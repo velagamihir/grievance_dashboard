@@ -19,6 +19,7 @@ import {
   GraduationCap,
   Building,
   Download,
+  ChevronDown,
 } from 'lucide-react'
 import { useDocumentTitle, useGrievancePage } from '../hooks'
 import {
@@ -43,6 +44,43 @@ import type {
   GrievancePageProps,
   FormResponseRow,
 } from '../types'
+
+const ExpandableDescription: React.FC<{ text?: string | null }> = ({ text }) => {
+  const [isExpanded, setIsExpanded] = useState(false)
+
+  if (!text) return null
+
+  const isLong = text.length > 110
+
+  return (
+    <div className="mt-2 bg-offwhite/70 dark:bg-[#151726]/60 p-3 rounded-xl border border-gray/10">
+      <p
+        className={`text-xs sm:text-sm text-darkblue/90 dark:text-offwhite/90 leading-relaxed whitespace-pre-line ${
+          !isExpanded ? 'line-clamp-2 sm:line-clamp-3' : ''
+        }`}
+      >
+        {text}
+      </p>
+      {isLong && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            setIsExpanded(!isExpanded)
+          }}
+          className="mt-1.5 text-xs font-semibold text-lightblue hover:text-lightblue/80 transition-colors inline-flex items-center gap-1 focus:outline-none cursor-pointer"
+        >
+          <span>{isExpanded ? 'Show less' : 'Show more'}</span>
+          <ChevronDown
+            className={`w-3.5 h-3.5 transition-transform duration-200 ${
+              isExpanded ? 'rotate-180' : ''
+            }`}
+          />
+        </button>
+      )}
+    </div>
+  )
+}
 
 export const GrievancePage: React.FC<GrievancePageProps> = ({
   isDark,
@@ -403,9 +441,7 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
                     </div>
                   }
                   description={
-                    <p className="text-xs sm:text-sm text-darkblue/90 dark:text-offwhite/90 mt-2 bg-offwhite/70 dark:bg-[#151726]/60 p-3 rounded-xl border border-gray/10">
-                      {item.problem_description}
-                    </p>
+                    <ExpandableDescription text={item.problem_description} />
                   }
                   meta={
                     <div className="flex items-center gap-3 text-[11px] text-gray flex-wrap mt-2">

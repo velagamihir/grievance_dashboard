@@ -133,7 +133,7 @@ export const ListItem: React.FC<ListItemProps> = ({
           )}
 
           {description && (
-            <div className="text-xs text-gray/80 mt-1 line-clamp-2">
+            <div className="text-xs text-gray/80 mt-1">
               {description}
             </div>
           )}
