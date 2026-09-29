@@ -109,6 +109,8 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [triggeringWorkflow, setTriggeringWorkflow] = useState<Record<string, boolean>>({})
+  const [resolveConfirmItem, setResolveConfirmItem] = useState<{ id: number; name: string } | null>(null)
+  const [resolvingStatus, setResolvingStatus] = useState(false)
 
   // Extracted custom hook containing all functions, state, and API operations
   const {
@@ -162,6 +164,34 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
     handleGrievanceCreated,
   } = useGrievancePage()
 
+  const onStatusSelectChange = (item: FormResponseRow, targetStatus: string) => {
+    if (item.status === 'Resolved') {
+      setToast({
+        message: 'This grievance is marked as Resolved and its status cannot be changed back.',
+        type: 'error',
+      })
+      return
+    }
+
+    if (targetStatus === 'Resolved') {
+      setResolveConfirmItem({ id: item.id, name: item.name || 'this student' })
+      return
+    }
+
+    handleStatusChange(item.id, targetStatus)
+  }
+
+  const handleConfirmResolve = async () => {
+    if (!resolveConfirmItem) return
+    try {
+      setResolvingStatus(true)
+      await handleStatusChange(resolveConfirmItem.id, 'Resolved')
+      setResolveConfirmItem(null)
+    } finally {
+      setResolvingStatus(false)
+    }
+  }
+
   const handleTriggerWorkflow1 = async (item: FormResponseRow) => {
     if (!canTriggerWorkflow1) {
       setToast({
@@ -213,7 +243,6 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
         type: 'success',
       })
     } catch (err: any) {
-      console.error('Error triggering Workflow 1:', err)
       setToast({
         message: `Failed to trigger Issue Mail Workflow: ${err?.message || 'Network error'}`,
         type: 'error',
@@ -282,7 +311,6 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
         type: 'success',
       })
     } catch (err: any) {
-      console.error('Error triggering Workflow 2:', err)
       setToast({
         message: `Failed to trigger Workflow 2: ${err?.message || 'Network error'}`,
         type: 'error',
@@ -620,24 +648,33 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
                       {/* Interactive Status Dropdown */}
                       <div className="relative flex items-center">
                         <select
-                          value={item.status || 'Pending'}
-                          onChange={(e) => handleStatusChange(item.id, e.target.value)}
-                          disabled={!canEditStatus}
+                          value={item.status || 'Not Yet Started'}
+                          onChange={(e) => onStatusSelectChange(item, e.target.value)}
+                          disabled={!canEditStatus || item.status === 'Resolved'}
                           title={
-                            !canEditStatus
-                              ? 'Permission Denied: Only authorized coordinators & admins can change status'
-                              : 'Change grievance status'
+                            item.status === 'Resolved'
+                              ? 'This grievance is marked as Resolved and cannot be changed back.'
+                              : !canEditStatus
+                                ? 'Permission Denied: Only authorized coordinators & admins can change status'
+                                : 'Change grievance status'
                           }
-                          className={`appearance-none cursor-pointer text-xs font-semibold py-1.5 pl-3 pr-8 rounded-xl border transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-lightblue/30 disabled:cursor-not-allowed disabled:opacity-60 ${item.status === 'Resolved'
-                            ? 'bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/30'
-                            : item.status === 'In Progress'
+                          className={`appearance-none text-xs font-semibold py-1.5 pl-3 pr-8 rounded-xl border transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-lightblue/30 ${
+                            item.status === 'Resolved'
+                              ? 'bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/30 cursor-not-allowed opacity-90'
+                              : !canEditStatus
+                                ? 'cursor-not-allowed opacity-60'
+                                : 'cursor-pointer'
+                          } ${
+                            item.status === 'In progress'
                               ? 'bg-lightblue/15 text-lightblue dark:text-lightblue border-lightblue/30'
-                              : item.status === 'Under Review'
+                              : item.status === 'Issue mail sent'
                                 ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30'
-                                : item.status === 'Rejected'
-                                  ? 'bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/30'
-                                  : 'bg-orange/15 text-orange border-orange/30'
-                            }`}
+                                : item.status === 'Final mail sent'
+                                  ? 'bg-darkblue/15 text-darkblue dark:text-offwhite border-darkblue/30'
+                                  : item.status === 'Resolved'
+                                    ? ''
+                                    : 'bg-orange/15 text-orange border-orange/30'
+                          }`}
                         >
                           {STATUS_OPTIONS.map((opt) => (
                             <option
@@ -842,8 +879,8 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
                 name: 'status',
                 label: 'Status',
                 type: 'select',
-                disabled: !canEditStatus,
-                options: ['Pending', 'Under Review', 'In Progress', 'Resolved', 'Rejected'],
+                disabled: !canEditStatus || selectedGrievance.status === 'Resolved',
+                options: STATUS_OPTIONS.map((s) => s.value),
                 colSpan: 1,
               },
               {
@@ -906,6 +943,34 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
             }}
           />
         </Modal>
+      )}
+
+      {/* ========================================== */}
+      {/* RESOLVE STATUS CONFIRMATION MODAL          */}
+      {/* ========================================== */}
+      {resolveConfirmItem && (
+        <ConfirmModal
+          isOpen={Boolean(resolveConfirmItem)}
+          onClose={() => setResolveConfirmItem(null)}
+          onConfirm={handleConfirmResolve}
+          title={`Mark Grievance #${resolveConfirmItem.id} as Resolved?`}
+          subtitle="Final Resolution Confirmation"
+          variant="primary"
+          confirmText="Yes, Mark as Resolved"
+          cancelText="Cancel"
+          isLoading={resolvingStatus}
+          message={
+            <div className="space-y-2">
+              <p className="text-xs sm:text-sm text-darkblue/90 dark:text-offwhite/90">
+                Are you sure you want to mark the grievance for{' '}
+                <strong>{resolveConfirmItem.name}</strong> as <strong>Resolved</strong>?
+              </p>
+              <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold bg-amber-50 dark:bg-amber-950/30 p-2.5 rounded-xl border border-amber-500/20">
+                ⚠️ Once marked as Resolved, this grievance will be locked and cannot be changed back to any other status.
+              </p>
+            </div>
+          }
+        />
       )}
 
       {/* ========================================== */}

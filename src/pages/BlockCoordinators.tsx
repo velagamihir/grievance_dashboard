@@ -92,20 +92,17 @@ export const BlockCoordinators = ({
       ])
 
       if (coordRes.error) {
-        console.error('Error fetching coordinators:', coordRes.error)
         setCoordinators([])
       } else {
         setCoordinators(coordRes.data || [])
       }
 
       if (grvRes.error) {
-        console.error('Error fetching grievances:', grvRes.error)
         setGrievances([])
       } else {
         setGrievances(grvRes.data || [])
       }
-    } catch (err) {
-      console.error('Error in fetchData:', err)
+    } catch {
       setCoordinators([])
       setGrievances([])
     } finally {

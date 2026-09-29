@@ -84,15 +84,10 @@ export function usePermissions(): UserPermissionsState {
     try {
       setLoading(true)
 
-      // 1. Fetch all records directly from the `permissions` table
-      const { data: allPermsData, error: permsError } = await supabase
+      const { data: allPermsData } = await supabase
         .from('permissions')
         .select('*')
         .order('id', { ascending: true })
-
-      if (permsError) {
-        console.error('[Permissions] Error fetching permissions from DB:', permsError)
-      }
 
       const availablePerms: PermissionRow[] = allPermsData || []
       setAllPermissions(availablePerms)
@@ -100,15 +95,11 @@ export function usePermissions(): UserPermissionsState {
       // 2. Fetch user's assigned role from `profiles`
       let userRole: string | null = null
 
-      const { data: profileByUid, error: uidError } = await supabase
+      const { data: profileByUid } = await supabase
         .from('profiles')
         .select('role')
         .eq('firebase_uid', user.uid)
         .maybeSingle()
-
-      if (uidError) {
-        console.error('[Permissions] Error fetching profile by uid:', uidError)
-      }
 
       if (profileByUid?.role) {
         userRole = profileByUid.role
@@ -124,7 +115,6 @@ export function usePermissions(): UserPermissionsState {
         }
       }
 
-      console.log('[Permissions] Authenticated User UID:', user.uid, '| DB Role:', userRole)
       setRole(userRole)
 
       if (!userRole) {
@@ -136,19 +126,14 @@ export function usePermissions(): UserPermissionsState {
 
       // If user is super_admin, grant ALL permissions
       if (isSuperAdmin(cleanRole)) {
-        console.log('[Permissions] super_admin detected: granting all permissions')
         setPermissions(availablePerms)
         return
       }
 
       // 3. Find matching role from `roles` table
-      const { data: allRoles, error: rolesError } = await supabase
+      const { data: allRoles } = await supabase
         .from('roles')
         .select('id, name')
-
-      if (rolesError) {
-        console.error('[Permissions] Error fetching roles from DB:', rolesError)
-      }
 
       const matchedRole = (allRoles as RoleRow[] | null || []).find(
         (r) =>
@@ -164,7 +149,7 @@ export function usePermissions(): UserPermissionsState {
       }
 
       // 4. Query role_permissions with joined permissions
-      const { data: rpData, error: rpError } = await supabase
+      const { data: rpData } = await supabase
         .from('role_permissions')
         .select(`
           permission_id,
@@ -177,10 +162,6 @@ export function usePermissions(): UserPermissionsState {
           )
         `)
         .eq('role_id', roleId)
-
-      if (rpError) {
-        console.error('[Permissions] Error fetching role_permissions from DB:', rpError)
-      }
 
       let grantedPermissionIds: string[] = []
       let joinedPerms: PermissionRow[] = []
@@ -203,10 +184,8 @@ export function usePermissions(): UserPermissionsState {
         matchedPerms = availablePerms.filter((p) => grantedSet.has(String(p.id).trim()))
       }
 
-      console.log('[Permissions] Active DB Permissions for', cleanRole, ':', matchedPerms.map((p) => p.name))
       setPermissions(matchedPerms)
-    } catch (err) {
-      console.error('[Permissions] Error resolving user permissions:', err)
+    } catch {
       setPermissions([])
     } finally {
       setLoading(false)

@@ -78,8 +78,8 @@ export function useGrievancePage() {
           setSources(names)
         }
       }
-    } catch (err) {
-      console.warn('[useGrievancePage] Error fetching sources:', err)
+    } catch {
+      // Ignored
     }
   }, [])
 
@@ -99,14 +99,12 @@ export function useGrievancePage() {
         .order('id', { ascending: false })
 
       if (error) {
-        console.warn('[useGrievancePage] Supabase fetch error:', error.message)
         showToast(`Database error: ${error.message}`, 'error')
         setGrievances([])
       } else if (data) {
         setGrievances(data as FormResponseRow[])
       }
-    } catch (err: unknown) {
-      console.error('[useGrievancePage] Unexpected error:', err)
+    } catch {
       showToast('Error connecting to database', 'error')
       setGrievances([])
     } finally {
@@ -137,6 +135,12 @@ export function useGrievancePage() {
       return
     }
 
+    const currentItem = grievances.find((g) => g.id === grievanceId)
+    if (currentItem?.status === 'Resolved') {
+      showToast('This grievance is marked as Resolved and its status cannot be changed back.', 'error')
+      return
+    }
+
     const previousGrievances = [...grievances]
     // Optimistic Update
     setGrievances((prev) =>
@@ -147,18 +151,17 @@ export function useGrievancePage() {
       const { error } = await supabase
         .from('form_responses')
         .update({ status: newStatus })
-        .eq('id', grievanceId)
+        .eq('id', Number(grievanceId))
+        .select()
 
       if (error) {
-        console.warn('[handleStatusChange] Error updating status in Supabase:', error.message)
-        showToast(`Status updated to "${newStatus}" locally`, 'info')
-      } else {
-        showToast(`Grievance #${grievanceId} status updated to "${newStatus}"`, 'success')
+        throw error
       }
-    } catch (err) {
-      console.error('[handleStatusChange] Unexpected error:', err)
+
+      showToast(`Grievance #${grievanceId} status updated to "${newStatus}"`, 'success')
+    } catch (err: any) {
       setGrievances(previousGrievances)
-      showToast('Failed to update status. Please try again.', 'error')
+      showToast(`Failed to update status in DB: ${err?.message || 'Database error'}`, 'error')
     }
   }, [canEditStatus, grievances, showToast])
 
@@ -210,6 +213,13 @@ export function useGrievancePage() {
       return
     }
 
+    if (selectedGrievance.status === 'Resolved' && formData.status !== 'Resolved') {
+      const msg = 'This grievance is marked as Resolved and its status cannot be changed back.'
+      setEditError(msg)
+      showToast(msg, 'error')
+      return
+    }
+
     const locationValidation = validateLocationRequirement({
       room_no_and_block_name: formData.room_no_and_block_name,
       bus_route: formData.bus_route,
@@ -243,10 +253,10 @@ export function useGrievancePage() {
       const { error } = await supabase
         .from('form_responses')
         .update(updatedFields)
-        .eq('id', selectedGrievance.id)
+        .eq('id', Number(selectedGrievance.id))
 
       if (error) {
-        console.warn('[handleUpdateGrievance] Supabase update error:', error.message)
+        throw error
       }
 
       setGrievances((prev) =>
@@ -255,9 +265,10 @@ export function useGrievancePage() {
       showToast(`Grievance #${selectedGrievance.id} updated successfully!`, 'success')
       setIsEditModalOpen(false)
       setSelectedGrievance(null)
-    } catch (err) {
-      console.error('[handleUpdateGrievance] Unexpected error:', err)
-      showToast('Failed to update grievance details.', 'error')
+    } catch (err: any) {
+      const msg = err?.message || 'Failed to update grievance details.'
+      setEditError(msg)
+      showToast(msg, 'error')
     } finally {
       setSubmitting(false)
     }
@@ -287,19 +298,18 @@ export function useGrievancePage() {
       const { error } = await supabase
         .from('form_responses')
         .delete()
-        .eq('id', selectedGrievance.id)
+        .eq('id', Number(selectedGrievance.id))
 
       if (error) {
-        console.warn('[handleDeleteGrievance] Supabase delete error:', error.message)
+        throw error
       }
 
       setGrievances((prev) => prev.filter((g) => g.id !== selectedGrievance.id))
       showToast(`Grievance #${selectedGrievance.id} deleted successfully!`, 'success')
       setIsDeleteModalOpen(false)
       setSelectedGrievance(null)
-    } catch (err) {
-      console.error('[handleDeleteGrievance] Unexpected error:', err)
-      showToast('Failed to delete grievance.', 'error')
+    } catch (err: any) {
+      showToast(`Failed to delete grievance: ${err?.message || 'Unknown error'}`, 'error')
     } finally {
       setSubmitting(false)
     }
@@ -334,7 +344,13 @@ export function useGrievancePage() {
     return filteredByTypeGrievances.filter((item) => {
       // 1. Status filter
       if (statusFilter !== 'All') {
-        if ((item.status || '').toLowerCase() !== statusFilter.toLowerCase()) {
+        const itemStatus = (item.status || '').toLowerCase()
+        const targetStatus = statusFilter.toLowerCase()
+        if (targetStatus.includes('issue mail')) {
+          if (!itemStatus.includes('issue mail')) return false
+        } else if (targetStatus.includes('final mail')) {
+          if (!itemStatus.includes('final mail')) return false
+        } else if (itemStatus !== targetStatus) {
           return false
         }
       }
@@ -366,8 +382,14 @@ export function useGrievancePage() {
       return s === 'not yet started' || s === 'pending'
     }).length
     const inProgress = target.filter((g) => (g.status || '').toLowerCase() === 'in progress').length
-    const issueMailSent = target.filter((g) => (g.status || '').toLowerCase() === 'issue mail sent').length
-    const finalMailSent = target.filter((g) => (g.status || '').toLowerCase() === 'final mail sent').length
+    const issueMailSent = target.filter((g) => {
+      const s = (g.status || '').toLowerCase()
+      return s === 'issue mail sent' || s === 'issue mail to be sent' || s.includes('issue mail')
+    }).length
+    const finalMailSent = target.filter((g) => {
+      const s = (g.status || '').toLowerCase()
+      return s === 'final mail sent' || s === 'final mail to be sent' || s.includes('final mail')
+    }).length
     const resolved = target.filter((g) => (g.status || '').toLowerCase() === 'resolved').length
 
     return { total, notYetStarted, inProgress, issueMailSent, finalMailSent, resolved }

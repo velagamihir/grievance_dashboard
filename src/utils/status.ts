@@ -19,8 +19,8 @@ export const STATUS_OPTIONS: StatusOption[] = [
     textClass: 'text-orange',
   },
   {
-    value: 'Issue mail sent',
-    label: 'Issue Mail Sent',
+    value: 'Issue mail to be  sent',
+    label: 'Issue Mail to be Sent',
     variant: 'warning',
     bgClass: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
     borderClass: 'border-amber-500/30',
@@ -35,8 +35,8 @@ export const STATUS_OPTIONS: StatusOption[] = [
     textClass: 'text-lightblue',
   },
   {
-    value: 'Final mail sent',
-    label: 'Final Mail Sent',
+    value: 'Final mail to be sent',
+    label: 'Final Mail to be Sent',
     variant: 'darkblue',
     bgClass: 'bg-darkblue/15 text-darkblue dark:bg-darkblue/40 dark:text-offwhite',
     borderClass: 'border-darkblue/30',
@@ -52,23 +52,24 @@ export const STATUS_OPTIONS: StatusOption[] = [
   },
 ]
 
+export const normalizeDbStatus = (status?: string | null): string => {
+  if (!status) return 'Not Yet Started'
+  const s = status.trim().toLowerCase()
+  if (s === 'resolved') return 'Resolved'
+  if (s.includes('issue mail')) return 'Issue mail to be  sent'
+  if (s.includes('final mail')) return 'Final mail to be sent'
+  if (s.includes('progress')) return 'In progress'
+  return 'Not Yet Started'
+}
+
 export const getStatusBadgeVariant = (st?: string | null): ListBadgeVariant => {
   if (!st) return 'orange'
   const normalized = st.trim().toLowerCase()
-  switch (normalized) {
-    case 'resolved':
-      return 'success'
-    case 'final mail sent':
-      return 'darkblue'
-    case 'in progress':
-      return 'lightblue'
-    case 'issue mail sent':
-      return 'warning'
-    case 'not yet started':
-    case 'pending':
-    default:
-      return 'orange'
-  }
+  if (normalized === 'resolved') return 'success'
+  if (normalized.includes('final mail')) return 'darkblue'
+  if (normalized.includes('progress')) return 'lightblue'
+  if (normalized.includes('issue mail')) return 'warning'
+  return 'orange'
 }
 
 export const getStatusBadgeClass = (status: string | null | undefined): string => {
@@ -77,13 +78,13 @@ export const getStatusBadgeClass = (status: string | null | undefined): string =
   if (s === 'resolved') {
     return 'bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/30'
   }
-  if (s === 'final mail sent') {
+  if (s.includes('final mail')) {
     return 'bg-darkblue/15 text-darkblue dark:bg-darkblue/40 dark:text-offwhite border-darkblue/30'
   }
-  if (s === 'in progress') {
+  if (s.includes('progress')) {
     return 'bg-lightblue/15 text-lightblue dark:text-lightblue border-lightblue/30'
   }
-  if (s === 'issue mail sent') {
+  if (s.includes('issue mail')) {
     return 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30'
   }
   return 'bg-orange/15 text-orange border-orange/30'

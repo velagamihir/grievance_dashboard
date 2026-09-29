@@ -94,7 +94,6 @@ export function useRolesPage() {
       setRolePermissions(rpRes.data || [])
       setProfiles(profilesRes.data || [])
     } catch (err: unknown) {
-      console.error('[useRolesPage] Error fetching data:', err)
       showToast(err instanceof Error ? err.message : 'Error fetching roles and permissions', 'error')
     } finally {
       setLoading(false)
@@ -275,13 +274,9 @@ export function useRolesPage() {
             permission_id: pId,
           }))
 
-          const { error: rpError } = await supabase
+          await supabase
             .from('role_permissions')
             .insert(insertPayload)
-
-          if (rpError) {
-            console.warn('[useRolesPage] Error adding role permissions:', rpError)
-          }
         }
 
         // Grant default routes access to new role
@@ -301,7 +296,6 @@ export function useRolesPage() {
         setIsAddModalOpen(false)
         showToast(`Role "${cleanName}" created successfully!`, 'success')
       } catch (err: unknown) {
-        console.error('[useRolesPage] Error creating role:', err)
         const msg = err instanceof Error ? err.message : 'Failed to create role'
         setModalError(msg)
         showToast(msg, 'error')
@@ -375,7 +369,6 @@ export function useRolesPage() {
         setActiveRole(null)
         showToast(`Role "${cleanName}" updated successfully!`, 'success')
       } catch (err: unknown) {
-        console.error('[useRolesPage] Error updating role:', err)
         const msg = err instanceof Error ? err.message : 'Failed to update role'
         setModalError(msg)
         showToast(msg, 'error')
@@ -429,7 +422,6 @@ export function useRolesPage() {
         setActiveRole(null)
         showToast(`Permissions updated for role "${targetRole.name}"!`, 'success')
       } catch (err: unknown) {
-        console.error('[useRolesPage] Error changing permissions:', err)
         const msg = err instanceof Error ? err.message : 'Failed to update permissions'
         setModalError(msg)
         showToast(msg, 'error')
@@ -477,7 +469,6 @@ export function useRolesPage() {
       setActiveRole(null)
       showToast(`Role "${activeRole.name}" deleted successfully!`, 'success')
     } catch (err: unknown) {
-      console.error('[useRolesPage] Error deleting role:', err)
       const msg = err instanceof Error ? err.message : 'Failed to delete role'
       setModalError(msg)
       showToast(msg, 'error')

@@ -15,6 +15,4 @@ const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig)
 export const auth = getAuth(app)
 
 // Clear credentials when the tab/browser session closes
-setPersistence(auth, browserSessionPersistence).catch((error) => {
-  console.error('Failed to set browser session persistence:', error)
-})
+setPersistence(auth, browserSessionPersistence).catch(() => {})
