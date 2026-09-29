@@ -372,7 +372,6 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
                   key={item.id}
                   variant="card"
                   size="lg"
-
                   title={
                     <div className="flex items-center gap-2.5 flex-wrap">
                       <span className="font-bold text-darkblue dark:text-offwhite text-sm sm:text-base">

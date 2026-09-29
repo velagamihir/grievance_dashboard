@@ -183,8 +183,7 @@ export const Home = ({
             <table className="w-full text-left text-sm border-collapse min-w-[620px]">
               <thead>
                 <tr className="border-b border-gray/20 text-xs font-semibold text-gray uppercase tracking-wider">
-                  <th className="pb-3 pl-2">ID</th>
-                  <th className="pb-3">Type &amp; Subject</th>
+                  <th className="pb-3 pl-2">Type &amp; Subject</th>
                   <th className="pb-3">Submitted By</th>
                   <th className="pb-3">Branch / Location</th>
                   <th className="pb-3">Reported</th>
@@ -194,13 +193,13 @@ export const Home = ({
               <tbody className="divide-y divide-gray/15">
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-gray text-xs">
+                    <td colSpan={5} className="py-8 text-center text-gray text-xs">
                       Loading grievances from database...
                     </td>
                   </tr>
                 ) : recentGrievances.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-gray text-xs">
+                    <td colSpan={5} className="py-8 text-center text-gray text-xs">
                       No grievances found in database.
                     </td>
                   </tr>
@@ -210,10 +209,7 @@ export const Home = ({
                       key={item.id}
                       className="hover:bg-offwhite/60 dark:hover:bg-[#1a1d2e]/60 transition-colors"
                     >
-                      <td className="py-4 pl-2 font-mono text-xs font-bold text-lightblue">
-                        #{item.id}
-                      </td>
-                      <td className="py-4">
+                      <td className="py-4 pl-2">
                         <div className="font-semibold text-darkblue dark:text-offwhite line-clamp-1 max-w-xs">
                           {item.type_of_grievance || 'General Grievance'}
                         </div>
