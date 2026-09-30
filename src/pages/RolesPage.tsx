@@ -84,6 +84,7 @@ export const RolesPage: React.FC<RolesPageProps> = ({
     canEditRole,
     canChangePermissions,
     canDeleteRole,
+    displayName,
     user,
     signOutUser,
   } = useRolesPage()
@@ -242,6 +243,7 @@ export const RolesPage: React.FC<RolesPageProps> = ({
         onOpenDrawer={() => setIsDrawerOpen(true)}
         role={role}
         userEmail={user?.email}
+        userName={displayName}
         onSignOut={() => signOutUser()}
       />
 

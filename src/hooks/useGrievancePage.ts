@@ -23,6 +23,7 @@ export function useGrievancePage() {
   const { user, signOutUser } = useAuth()
   const {
     role,
+    displayName,
     loading: permissionsLoading,
     canViewAllGrievances,
     canCreateGrievance,
@@ -452,6 +453,7 @@ export function useGrievancePage() {
     canTriggerWorkflows,
     permissionsLoading,
     role,
+    displayName,
     user,
 
     // Setters & Helpers

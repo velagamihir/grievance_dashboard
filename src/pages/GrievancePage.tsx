@@ -142,6 +142,7 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
     canTriggerWorkflow2,
     permissionsLoading,
     role,
+    displayName,
     user,
     setToast,
     setSearchQuery,
@@ -370,6 +371,7 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
         onOpenDrawer={() => setIsDrawerOpen(true)}
         role={role}
         userEmail={user?.email}
+        userName={displayName}
         onSignOut={() => signOutUser()}
       />
 

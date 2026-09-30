@@ -21,6 +21,7 @@ export function useRolesPage() {
   const { user, signOutUser } = useAuth()
   const {
     role: currentUserRole,
+    displayName,
     isSuperAdmin,
     isAdminOrSuperAdmin,
     canViewRoles,
@@ -490,6 +491,7 @@ export function useRolesPage() {
     canManagePermissions,
     canDeleteRole,
     permissionsLoading,
+    displayName,
     user,
     signOutUser,
 

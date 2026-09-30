@@ -11,6 +11,7 @@ export interface HeaderProps {
   onOpenDrawer?: () => void
   role?: string | null
   userEmail?: string | null
+  userName?: string | null
   onSignOut?: () => void
   rightActions?: React.ReactNode
   showDrawerButton?: boolean
@@ -25,11 +26,14 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenDrawer,
   role,
   userEmail,
+  userName,
   onSignOut,
   rightActions,
   showDrawerButton = true,
   className = '',
 }) => {
+  const displayLabel = userName?.trim() || userEmail
+
   return (
     <header
       className={`sticky top-0 z-30 bg-white/80 dark:bg-[#1a1d2e]/80 backdrop-blur-md border-b border-gray/20 transition-colors duration-200 ${className}`}
@@ -73,11 +77,11 @@ export const Header: React.FC<HeaderProps> = ({
 
           <ThemeToggle isDark={isDark} onToggleTheme={onToggleTheme} />
 
-          {userEmail && (
+          {displayLabel && (
             <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-offwhite dark:bg-[#20243a] border border-gray/15 text-xs text-gray">
               <UserIcon className="w-3.5 h-3.5 text-lightblue" />
-              <span className="max-w-[140px] truncate font-medium text-darkblue dark:text-offwhite">
-                {userEmail}
+              <span className="max-w-[160px] truncate font-medium text-darkblue dark:text-offwhite">
+                {displayLabel}
               </span>
             </div>
           )}

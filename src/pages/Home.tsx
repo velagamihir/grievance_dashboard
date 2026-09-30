@@ -27,7 +27,7 @@ export const Home = ({
 }: HomeProps) => {
   useDocumentTitle('Dashboard | Grievance Portal')
   const { user, signOutUser } = useAuth()
-  const { role, canViewAllGrievances, loading: permissionsLoading } = usePermissions()
+  const { role, displayName, canViewAllGrievances, loading: permissionsLoading } = usePermissions()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [grievances, setGrievances] = useState<FormResponseRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -72,7 +72,7 @@ export const Home = ({
   // Dynamic statistics and recent list derived via extracted utils
   const stats = useMemo(() => calculateGrievanceStats(grievances), [grievances])
   const recentGrievances = useMemo(() => getRecentGrievances(grievances, 6), [grievances])
-  const userDisplayName = useMemo(() => getUserDisplayName(user), [user])
+  const userDisplayName = useMemo(() => getUserDisplayName(user, displayName), [user, displayName])
 
   return (
     <div className="min-h-screen bg-offwhite dark:bg-[#151726] text-darkblue dark:text-offwhite transition-colors duration-200">
@@ -93,6 +93,7 @@ export const Home = ({
         onOpenDrawer={() => setIsDrawerOpen(true)}
         role={role}
         userEmail={user?.email}
+        userName={displayName}
         onSignOut={() => signOutUser()}
       />
 

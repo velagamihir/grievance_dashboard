@@ -18,6 +18,7 @@ export function useUsersPage() {
   const { user: currentAuthUser, signOutUser } = useAuth()
   const {
     role: currentUserRole,
+    displayName,
     isSuperAdmin,
     isAdminOrSuperAdmin,
     canViewUsers,
@@ -414,6 +415,7 @@ export function useUsersPage() {
   return {
     // Auth & Permission info
     currentUserRole,
+    displayName,
     isSuperAdmin,
     isAdminOrSuperAdmin,
     canViewUsers,

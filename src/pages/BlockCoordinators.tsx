@@ -36,6 +36,7 @@ export const BlockCoordinators = ({
   const { user, signOutUser } = useAuth()
   const {
     role,
+    displayName,
     canViewCoordinators,
     canAddCoordinator,
     canEditCoordinator,
@@ -294,6 +295,7 @@ export const BlockCoordinators = ({
         onOpenDrawer={() => setIsDrawerOpen(true)}
         role={role}
         userEmail={user?.email}
+        userName={displayName}
         onSignOut={() => signOutUser()}
       />
 

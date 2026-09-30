@@ -72,13 +72,27 @@ export const getGrievanceLocation = (item: Partial<FormResponseRow>): string => 
 }
 
 /**
- * Extracts a human-friendly display name from an email address or user object.
+ * Extracts a human-friendly display name prioritizing the DB display name, user displayName, or email.
  */
 export const getUserDisplayName = (
-  emailOrUser?: string | null | { email?: string | null }
+  emailOrUser?: string | null | { email?: string | null; displayName?: string | null },
+  dbDisplayName?: string | null
 ): string => {
+  if (dbDisplayName && dbDisplayName.trim()) {
+    return dbDisplayName.trim()
+  }
   if (!emailOrUser) return 'User'
-  const email = typeof emailOrUser === 'string' ? emailOrUser : emailOrUser.email
+  if (typeof emailOrUser === 'string') {
+    if (emailOrUser.includes('@')) {
+      const username = emailOrUser.split('@')[0]
+      return username.charAt(0).toUpperCase() + username.slice(1)
+    }
+    return emailOrUser.trim() || 'User'
+  }
+  if (emailOrUser.displayName && emailOrUser.displayName.trim()) {
+    return emailOrUser.displayName.trim()
+  }
+  const email = emailOrUser.email
   if (!email) return 'User'
   const username = email.split('@')[0]
   return username.charAt(0).toUpperCase() + username.slice(1)

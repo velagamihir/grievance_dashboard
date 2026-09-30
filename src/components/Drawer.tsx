@@ -21,6 +21,7 @@ export const Drawer: React.FC<DrawerProps> = ({
   const { user, signOutUser } = useAuth()
   const {
     role: permRole,
+    displayName: permDisplayName,
     permissions,
     isSuperAdmin,
     canViewAllGrievances,
@@ -45,6 +46,7 @@ export const Drawer: React.FC<DrawerProps> = ({
   } = usePermissions()
 
   const [role, setRole] = useState<string | null>(null)
+  const [displayName, setDisplayName] = useState<string | null>(null)
   const [rawRoutes, setRawRoutes] = useState<RouteData[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -195,16 +197,18 @@ export const Drawer: React.FC<DrawerProps> = ({
       try {
         setLoading(true)
 
-        // 1. Fetch user profile for assigned role
+        // 1. Fetch user profile for assigned role and display name
         const { data: profile } = await supabase
           .from('profiles')
-          .select('firebase_uid, role')
+          .select('firebase_uid, role, display_name')
           .eq('firebase_uid', user.uid)
           .maybeSingle()
 
         const userRole = profile?.role || permRole || null
+        const userDisplayName = profile?.display_name || permDisplayName || user.displayName || null
         if (isMounted) {
           setRole(userRole)
+          setDisplayName(userDisplayName)
         }
 
         let resolvedRoutes: RouteData[] = []
@@ -421,13 +425,17 @@ export const Drawer: React.FC<DrawerProps> = ({
           <div className="p-3 rounded-2xl bg-white dark:bg-[#20243a] border border-gray/15 shadow-xs flex items-center justify-between">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-8 h-8 rounded-full bg-lightblue/20 text-lightblue dark:bg-orange/20 dark:text-orange flex items-center justify-center font-bold text-xs uppercase flex-shrink-0">
-                {user?.email ? user.email.charAt(0) : 'U'}
+                {displayName ? displayName.charAt(0) : user?.email ? user.email.charAt(0) : 'U'}
               </div>
               <div className="text-xs min-w-0">
                 <p className="font-semibold text-darkblue dark:text-offwhite truncate">
-                  {user?.email || 'Authenticated User'}
+                  {displayName || user?.email || 'Authenticated User'}
                 </p>
-                <p className="text-gray text-[11px] capitalize">{role || 'Citizen'}</p>
+                {displayName && user?.email ? (
+                  <p className="text-gray text-[10px] truncate">{user.email}</p>
+                ) : (
+                  <p className="text-gray text-[11px] capitalize">{role || 'Citizen'}</p>
+                )}
               </div>
             </div>
 

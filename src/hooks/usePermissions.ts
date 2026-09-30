@@ -38,6 +38,7 @@ interface RolePermissionJoined {
 
 export interface UserPermissionsState {
   role: string | null
+  displayName: string | null
   permissions: PermissionRow[]
   allPermissions: PermissionRow[]
   loading: boolean
@@ -77,6 +78,7 @@ export interface UserPermissionsState {
 export function usePermissions(): UserPermissionsState {
   const { user } = useAuth()
   const [role, setRole] = useState<string | null>(null)
+  const [displayName, setDisplayName] = useState<string | null>(null)
   const [permissions, setPermissions] = useState<PermissionRow[]>([])
   const [allPermissions, setAllPermissions] = useState<PermissionRow[]>([])
   const [loading, setLoading] = useState<boolean>(true)
@@ -84,6 +86,7 @@ export function usePermissions(): UserPermissionsState {
   const fetchPermissions = useCallback(async () => {
     if (!user) {
       setRole(null)
+      setDisplayName(null)
       setPermissions([])
       setAllPermissions([])
       setLoading(false)
@@ -101,30 +104,34 @@ export function usePermissions(): UserPermissionsState {
       const availablePerms: PermissionRow[] = allPermsData || []
       setAllPermissions(availablePerms)
 
-      // 2. Fetch user's assigned role from `profiles`
+      // 2. Fetch user's assigned role and display name from `profiles` in Supabase
       let userRole: string | null = null
+      let userDisplayName: string | null = null
 
       const { data: profileByUid } = await supabase
         .from('profiles')
-        .select('role')
+        .select('role, display_name, email')
         .eq('firebase_uid', user.uid)
         .maybeSingle()
 
-      if (profileByUid?.role) {
-        userRole = profileByUid.role
+      if (profileByUid) {
+        if (profileByUid.role) userRole = profileByUid.role
+        if (profileByUid.display_name) userDisplayName = profileByUid.display_name
       } else if (user.email) {
         const { data: profileByEmail } = await supabase
           .from('profiles')
-          .select('role')
+          .select('role, display_name, email')
           .eq('email', user.email)
           .maybeSingle()
 
-        if (profileByEmail?.role) {
-          userRole = profileByEmail.role
+        if (profileByEmail) {
+          if (profileByEmail.role) userRole = profileByEmail.role
+          if (profileByEmail.display_name) userDisplayName = profileByEmail.display_name
         }
       }
 
       setRole(userRole)
+      setDisplayName(userDisplayName || user.displayName || null)
 
       if (!userRole) {
         setPermissions([])
@@ -246,6 +253,7 @@ export function usePermissions(): UserPermissionsState {
 
   return {
     role,
+    displayName,
     permissions,
     allPermissions,
     loading,
