@@ -8,6 +8,7 @@ import { BlockCoordinators } from './pages/BlockCoordinators'
 import { GrievancePage } from './pages/GrievancePage'
 import { RolesPage } from './pages/RolesPage'
 import { UsersPage } from './pages/UsersPage'
+import { TasksPage } from './pages/TasksPage'
 import type { MainRouterProps } from './types'
 
 function MainRouter({ isDark, onToggleTheme }: MainRouterProps) {
@@ -127,6 +128,23 @@ function MainRouter({ isDark, onToggleTheme }: MainRouterProps) {
   ) {
     return (
       <RolesPage
+        isDark={isDark}
+        onToggleTheme={onToggleTheme}
+        currentPath={currentPath}
+        onNavigate={handleNavigate}
+      />
+    )
+  }
+
+  if (
+    currentPath === '/tasks' ||
+    currentPath === '/works' ||
+    currentPath === '/work-assignments' ||
+    currentPath.startsWith('/tasks') ||
+    currentPath.startsWith('/works')
+  ) {
+    return (
+      <TasksPage
         isDark={isDark}
         onToggleTheme={onToggleTheme}
         currentPath={currentPath}

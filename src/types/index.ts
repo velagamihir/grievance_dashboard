@@ -1,5 +1,6 @@
 import type { InputHTMLAttributes, ButtonHTMLAttributes, ReactNode, ComponentType } from 'react'
 import type { User } from 'firebase/auth'
+import type { LucideIcon } from 'lucide-react'
 
 // ==========================================
 // UI Component Types
@@ -582,6 +583,87 @@ export interface SourceRow {
   source_name: string
 }
 
+export interface TaskRow {
+  id: number
+  title: string
+  description: string | null
+  priority: 'Low' | 'Medium' | 'High' | 'Urgent'
+  status: 'Pending' | 'In Progress' | 'Completed' | 'Cancelled'
+  due_date: string | null
+  assigned_to_all: boolean
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export interface TaskAssignmentRow {
+  id: number
+  task_id: number
+  user_uid: string
+  status: 'Pending' | 'In Progress' | 'Completed'
+  notes: string | null
+  completed_at: string | null
+  created_at: string
+}
+
+export interface TaskAssignmentWithUser extends TaskAssignmentRow {
+  userProfile?: ProfileRow | null
+}
+
+export interface TaskWithAssignments extends TaskRow {
+  assignments: TaskAssignmentWithUser[]
+  creatorProfile?: ProfileRow | null
+  myAssignment?: TaskAssignmentRow | null
+  completedCount: number
+  totalAssignedCount: number
+}
+
+export interface CreateTaskFormData {
+  title: string
+  description?: string
+  priority: 'Low' | 'Medium' | 'High' | 'Urgent'
+  due_date?: string | null
+  assigned_to_all: boolean
+  assigned_uids: string[]
+}
+
+export interface UpdateTaskFormData {
+  id: number
+  title: string
+  description?: string
+  priority: 'Low' | 'Medium' | 'High' | 'Urgent'
+  status: 'Pending' | 'In Progress' | 'Completed' | 'Cancelled'
+  due_date?: string | null
+  assigned_to_all: boolean
+  assigned_uids: string[]
+}
+
+export interface UpdateAssignmentStatusFormData {
+  taskId: number
+  status: 'Pending' | 'In Progress' | 'Completed'
+  notes?: string
+}
+
+export interface TaskStatItem {
+  title: string
+  count: number
+  change: string
+  icon: LucideIcon
+  color: string
+}
+
+export interface TasksToast {
+  message: string
+  type: 'success' | 'error' | 'info'
+}
+
+export interface TasksPageProps {
+  isDark: boolean
+  onToggleTheme: () => void
+  currentPath?: string
+  onNavigate?: (path: string) => void
+}
+
 export interface DatabaseSchema {
   block_coordinators: BlockCoordinatorRow
   form_responses: FormResponseRow
@@ -592,6 +674,8 @@ export interface DatabaseSchema {
   roles: RoleRow
   routes: RouteRow
   sources: SourceRow
+  tasks: TaskRow
+  task_assignments: TaskAssignmentRow
 }
 
 

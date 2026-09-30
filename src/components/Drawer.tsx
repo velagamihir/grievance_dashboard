@@ -42,6 +42,11 @@ export const Drawer: React.FC<DrawerProps> = ({
     canCreateUser,
     canEditUser,
     canDeleteUser,
+    canViewTasks,
+    canCreateTask,
+    canEditTask,
+    canDeleteTask,
+    canUpdateTaskStatus,
     loading: permissionsLoading,
   } = usePermissions()
 
@@ -140,7 +145,30 @@ export const Drawer: React.FC<DrawerProps> = ({
         return hasUsersPerms
       }
 
-      // 6. Generic resource match from path or name
+      // 6. Work Assignments / Tasks category
+      if (
+        p === '/tasks' ||
+        p === '/works' ||
+        p.includes('task') ||
+        p.includes('work') ||
+        name.includes('task') ||
+        name.includes('work')
+      ) {
+        const hasTasksPerms =
+          canViewTasks ||
+          canCreateTask ||
+          canEditTask ||
+          canDeleteTask ||
+          canUpdateTaskStatus ||
+          permissions.some(
+            (perm) =>
+              (perm.resource || '').toLowerCase().trim() === 'tasks' ||
+              (perm.resource || '').toLowerCase().trim() === 'works'
+          )
+        return hasTasksPerms
+      }
+
+      // 7. Generic resource match from path or name
       const resourceKey = p.replace(/^\//, '').replace(/[_\s-]+/g, '_')
       if (resourceKey) {
         const hasResourcePerm = permissions.some((perm) => {
@@ -172,6 +200,11 @@ export const Drawer: React.FC<DrawerProps> = ({
       canCreateUser,
       canEditUser,
       canDeleteUser,
+      canViewTasks,
+      canCreateTask,
+      canEditTask,
+      canDeleteTask,
+      canUpdateTaskStatus,
       permissions,
     ]
   )
@@ -259,6 +292,16 @@ export const Drawer: React.FC<DrawerProps> = ({
             path: '/roles',
             icon: 'shield',
             sort_order: 99,
+          })
+        }
+
+        // Include Work Assignments route candidate if permitted
+        if ((isAdmin || canViewTasks) && !resolvedRoutes.some((r) => r.path === '/tasks')) {
+          resolvedRoutes.push({
+            name: 'Work Assignments',
+            path: '/tasks',
+            icon: 'clipboard-list',
+            sort_order: 4,
           })
         }
 

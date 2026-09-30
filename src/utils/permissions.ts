@@ -457,4 +457,97 @@ export const checkCanTriggerWorkflows = (
   )
 }
 
+/**
+ * Checks if user has permission to view tasks / works.
+ */
+export const checkCanViewTasks = (
+  permissions: PermissionRow[] | null | undefined
+): boolean => {
+  return (
+    hasPermission(permissions, 'tasks', 'view') ||
+    hasPermission(permissions, 'tasks', 'read') ||
+    hasPermission(permissions, 'works', 'view') ||
+    hasPermission(permissions, 'works', 'read') ||
+    hasPermissionName(permissions, 'View Works') ||
+    hasPermissionName(permissions, 'View Tasks') ||
+    hasPermissionName(permissions, 'view_tasks') ||
+    hasPermissionName(permissions, 'view_works')
+  )
+}
+
+/**
+ * Checks if user has permission to create/assign new tasks / works.
+ */
+export const checkCanCreateTask = (
+  permissions: PermissionRow[] | null | undefined
+): boolean => {
+  return (
+    hasPermission(permissions, 'tasks', 'add') ||
+    hasPermission(permissions, 'tasks', 'create') ||
+    hasPermission(permissions, 'tasks', 'insert') ||
+    hasPermission(permissions, 'works', 'add') ||
+    hasPermission(permissions, 'works', 'create') ||
+    hasPermissionName(permissions, 'Create Works') ||
+    hasPermissionName(permissions, 'Add Works') ||
+    hasPermissionName(permissions, 'Create Tasks') ||
+    hasPermissionName(permissions, 'Add Tasks') ||
+    hasPermissionName(permissions, 'create_tasks') ||
+    hasPermissionName(permissions, 'create_task')
+  )
+}
+
+/**
+ * Checks if user has permission to edit tasks / works.
+ */
+export const checkCanEditTask = (
+  permissions: PermissionRow[] | null | undefined
+): boolean => {
+  return (
+    hasPermission(permissions, 'tasks', 'edit') ||
+    hasPermission(permissions, 'tasks', 'update') ||
+    hasPermission(permissions, 'works', 'edit') ||
+    hasPermission(permissions, 'works', 'update') ||
+    hasPermissionName(permissions, 'Edit Works') ||
+    hasPermissionName(permissions, 'Edit Tasks') ||
+    hasPermissionName(permissions, 'edit_tasks') ||
+    hasPermissionName(permissions, 'edit_task')
+  )
+}
+
+/**
+ * Checks if user has permission to delete tasks / works.
+ */
+export const checkCanDeleteTask = (
+  permissions: PermissionRow[] | null | undefined
+): boolean => {
+  return (
+    hasPermission(permissions, 'tasks', 'delete') ||
+    hasPermission(permissions, 'tasks', 'remove') ||
+    hasPermission(permissions, 'works', 'delete') ||
+    hasPermission(permissions, 'works', 'remove') ||
+    hasPermissionName(permissions, 'Delete Works') ||
+    hasPermissionName(permissions, 'Delete Tasks') ||
+    hasPermissionName(permissions, 'delete_tasks') ||
+    hasPermissionName(permissions, 'delete_task')
+  )
+}
+
+/**
+ * Checks if user has permission to update task assignment status.
+ */
+export const checkCanUpdateTaskStatus = (
+  permissions: PermissionRow[] | null | undefined
+): boolean => {
+  return (
+    hasPermission(permissions, 'tasks', 'update_status') ||
+    hasPermission(permissions, 'tasks', 'edit_status') ||
+    hasPermission(permissions, 'tasks', 'edit') ||
+    hasPermission(permissions, 'works', 'update_status') ||
+    hasPermissionName(permissions, 'Update Work Status') ||
+    hasPermissionName(permissions, 'Update Task Status') ||
+    hasPermissionName(permissions, 'update_task_status')
+  )
+}
+
+
 

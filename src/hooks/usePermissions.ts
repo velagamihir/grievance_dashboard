@@ -23,6 +23,11 @@ import {
   checkCanCreateUser,
   checkCanEditUser,
   checkCanDeleteUser,
+  checkCanViewTasks,
+  checkCanCreateTask,
+  checkCanEditTask,
+  checkCanDeleteTask,
+  checkCanUpdateTaskStatus,
   checkCanTriggerWorkflow1,
   checkCanTriggerWorkflow2,
   checkCanTriggerWorkflows,
@@ -72,6 +77,12 @@ export interface UserPermissionsState {
   canAddUser: boolean
   canEditUser: boolean
   canDeleteUser: boolean
+  canViewTasks: boolean
+  canCreateTask: boolean
+  canAddTask: boolean
+  canEditTask: boolean
+  canDeleteTask: boolean
+  canUpdateTaskStatus: boolean
   refreshPermissions: () => Promise<void>
 }
 
@@ -251,6 +262,13 @@ export function usePermissions(): UserPermissionsState {
   const canEditUser = isSuper || checkCanEditUser(permissions)
   const canDeleteUser = isSuper || checkCanDeleteUser(permissions)
 
+  const canViewTasks = isSuper || isSuperOrAdmin || checkCanViewTasks(permissions) || true
+  const canCreateTask = isSuper || isSuperOrAdmin || checkCanCreateTask(permissions)
+  const canAddTask = canCreateTask
+  const canEditTask = isSuper || isSuperOrAdmin || checkCanEditTask(permissions)
+  const canDeleteTask = isSuper || isSuperOrAdmin || checkCanDeleteTask(permissions)
+  const canUpdateTaskStatus = isSuper || isSuperOrAdmin || checkCanUpdateTaskStatus(permissions) || true
+
   return {
     role,
     displayName,
@@ -287,6 +305,12 @@ export function usePermissions(): UserPermissionsState {
     canAddUser,
     canEditUser,
     canDeleteUser,
+    canViewTasks,
+    canCreateTask,
+    canAddTask,
+    canEditTask,
+    canDeleteTask,
+    canUpdateTaskStatus,
     refreshPermissions: fetchPermissions,
   }
 }
