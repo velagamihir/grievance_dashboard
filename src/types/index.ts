@@ -640,6 +640,7 @@ export interface UpdateTaskFormData {
 
 export interface UpdateAssignmentStatusFormData {
   taskId: number
+  userUid?: string
   status: 'Pending' | 'In Progress' | 'Completed'
   notes?: string
 }

@@ -124,28 +124,54 @@ export function useTasksPage() {
     const currentUid = user?.uid || ''
 
     return tasks.map((task) => {
-      const taskAssignments: TaskAssignmentWithUser[] = assignments
-        .filter((a) => String(a.task_id) === String(task.id))
-        .map((a) => ({
+      const explicitAssignments = assignments.filter((a) => String(a.task_id) === String(task.id))
+      const explicitMap = new Map<string, TaskAssignmentRow>()
+      explicitAssignments.forEach((a) => explicitMap.set(a.user_uid, a))
+
+      let finalAssignments: TaskAssignmentWithUser[] = []
+
+      if (task.assigned_to_all) {
+        finalAssignments = profiles.map((p) => {
+          const explicit = explicitMap.get(p.firebase_uid)
+          if (explicit) {
+            return {
+              ...explicit,
+              userProfile: p,
+            }
+          }
+          return {
+            id: -1,
+            task_id: task.id,
+            user_uid: p.firebase_uid,
+            status: 'Pending' as const,
+            notes: null,
+            completed_at: null,
+            created_at: task.created_at,
+            userProfile: p,
+          }
+        })
+      } else {
+        finalAssignments = explicitAssignments.map((a) => ({
           ...a,
           userProfile: profileMap.get(a.user_uid) || null,
         }))
+      }
 
       const creator = profileMap.get(task.created_by) || null
-      const myAssignment = taskAssignments.find((a) => a.user_uid === currentUid) || null
-      const completedCount = taskAssignments.filter((a) => a.status === 'Completed').length
-      const totalAssignedCount = taskAssignments.length
+      const myAssignment = finalAssignments.find((a) => a.user_uid === currentUid) || null
+      const completedCount = finalAssignments.filter((a) => a.status === 'Completed').length
+      const totalAssignedCount = finalAssignments.length
 
       return {
         ...task,
-        assignments: taskAssignments,
+        assignments: finalAssignments,
         creatorProfile: creator,
         myAssignment,
         completedCount,
         totalAssignedCount,
       }
     })
-  }, [tasks, assignments, profileMap, user])
+  }, [tasks, assignments, profiles, profileMap, user])
 
   // Filtered tasks based on search, status, priority, and scope
   const filteredTasks = useMemo(() => {
@@ -466,29 +492,68 @@ export function useTasksPage() {
         setModalError(null)
 
         const isCompleted = formData.status === 'Completed'
-        const assignmentUpdate = {
+        const taskIdNum = Number(formData.taskId)
+        const userUidStr = formData.userUid ? String(formData.userUid) : String(user.uid)
+
+        const assignmentData = {
+          task_id: taskIdNum,
+          user_uid: userUidStr,
           status: formData.status,
           notes: formData.notes?.trim() || null,
           completed_at: isCompleted ? new Date().toISOString() : null,
         }
 
-        const { error: assignError } = await supabase
+        // 1. Try upsert with onConflict for atomic operation
+        const { error: upsertErr } = await supabase
           .from('task_assignments')
-          .update(assignmentUpdate)
-          .eq('task_id', formData.taskId)
-          .eq('user_uid', user.uid)
+          .upsert(assignmentData, { onConflict: 'task_id,user_uid' })
 
-        if (assignError) throw assignError
+        // 2. Fallback to manual check-then-write if upsert has an issue
+        if (upsertErr) {
+          console.warn('Upsert fallback triggered:', upsertErr.message)
+          const { data: existingRow } = await supabase
+            .from('task_assignments')
+            .select('id')
+            .eq('task_id', taskIdNum)
+            .eq('user_uid', userUidStr)
+            .maybeSingle()
 
-        // Recalculate overall task status if necessary
+          if (existingRow) {
+            const { error: assignError } = await supabase
+              .from('task_assignments')
+              .update({
+                status: formData.status,
+                notes: formData.notes?.trim() || null,
+                completed_at: isCompleted ? new Date().toISOString() : null,
+              })
+              .eq('id', existingRow.id)
+
+            if (assignError) throw assignError
+          } else {
+            const { error: insertError } = await supabase
+              .from('task_assignments')
+              .insert([
+                {
+                  ...assignmentData,
+                  created_at: new Date().toISOString(),
+                },
+              ])
+
+            if (insertError) throw insertError
+          }
+        }
+
+        // 3. Recalculate overall task status if necessary
         const { data: taskAssigns } = await supabase
           .from('task_assignments')
           .select('status')
-          .eq('task_id', formData.taskId)
+          .eq('task_id', taskIdNum)
 
         if (taskAssigns && taskAssigns.length > 0) {
           const allCompleted = taskAssigns.every((a) => a.status === 'Completed')
-          const anyInProgress = taskAssigns.some((a) => a.status === 'In Progress' || a.status === 'Completed')
+          const anyInProgress = taskAssigns.some(
+            (a) => a.status === 'In Progress' || a.status === 'Completed'
+          )
 
           let newOverallStatus = 'Pending'
           if (allCompleted) {
@@ -500,7 +565,7 @@ export function useTasksPage() {
           await supabase
             .from('tasks')
             .update({ status: newOverallStatus, updated_at: new Date().toISOString() })
-            .eq('id', formData.taskId)
+            .eq('id', taskIdNum)
         }
 
         await fetchData()

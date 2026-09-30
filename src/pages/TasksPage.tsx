@@ -176,12 +176,19 @@ export const TasksPage = ({
   }
 
   // Open Quick Status Update Modal Initializer
-  const onOpenStatusModal = (task: TaskWithAssignments) => {
-    const myAssign = task.myAssignment
+  const onOpenStatusModal = (
+    task: TaskWithAssignments,
+    targetUserUid?: string,
+    initialStatus?: 'Pending' | 'In Progress' | 'Completed',
+    initialNotes?: string
+  ) => {
+    const targetUid = targetUserUid || user?.uid || ''
+    const targetAssign = task.assignments.find((a) => a.user_uid === targetUid)
     setStatusForm({
       taskId: task.id,
-      status: myAssign?.status || 'In Progress',
-      notes: myAssign?.notes || '',
+      userUid: targetUid,
+      status: initialStatus || targetAssign?.status || 'In Progress',
+      notes: initialNotes !== undefined ? initialNotes : targetAssign?.notes || '',
     })
     handleOpenStatusUpdate(task)
   }
@@ -1147,9 +1154,10 @@ export const TasksPage = ({
                 {activeTask.assignments.map((a) => {
                   const name = a.userProfile?.display_name || a.userProfile?.email || 'User'
                   const isCurrent = user?.uid === a.user_uid
+                  const canManageMemberStatus = isCurrent || canUpdateTaskStatus || canEditTask
                   return (
                     <div
-                      key={a.id}
+                      key={a.id !== -1 ? a.id : `synthetic-${a.user_uid}`}
                       className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
                         isCurrent
                           ? 'bg-lightblue/5 border-lightblue/30 dark:bg-lightblue/10'
@@ -1182,13 +1190,13 @@ export const TasksPage = ({
                           {a.status}
                         </span>
 
-                        {isCurrent && (
+                        {canManageMemberStatus && (
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => {
                               setIsDetailsModalOpen(false)
-                              onOpenStatusModal(activeTask)
+                              onOpenStatusModal(activeTask, a.user_uid, a.status, a.notes || '')
                             }}
                             className="text-[11px] px-2 py-1 h-7 font-semibold"
                           >
@@ -1218,7 +1226,7 @@ export const TasksPage = ({
         <Modal
           isOpen={isStatusUpdateModalOpen}
           onClose={() => !actionLoading && setIsStatusUpdateModalOpen(false)}
-          title="Update My Work Progress"
+          title="Update Work Progress"
           size="md"
         >
           <form
@@ -1235,18 +1243,26 @@ export const TasksPage = ({
               </div>
             )}
 
-            <div>
-              <h4 className="text-xs font-bold text-gray uppercase tracking-wider mb-1">
-                Work Title
+            <div className="space-y-1">
+              <h4 className="text-xs font-bold text-gray uppercase tracking-wider mb-0.5">
+                Work Assignment
               </h4>
-              <p className="text-sm font-semibold text-darkblue dark:text-offwhite">
+              <p className="text-sm font-bold text-darkblue dark:text-offwhite">
                 {activeTask.title}
               </p>
+              {statusForm.userUid && (
+                <p className="text-xs font-semibold text-lightblue">
+                  Target Member:{' '}
+                  {profiles.find((p) => p.firebase_uid === statusForm.userUid)?.display_name ||
+                    profiles.find((p) => p.firebase_uid === statusForm.userUid)?.email ||
+                    (statusForm.userUid === user?.uid ? 'You' : statusForm.userUid)}
+                </p>
+              )}
             </div>
 
             <div>
               <label className="block text-xs font-bold text-darkblue dark:text-offwhite mb-1.5">
-                My Execution Status <span className="text-rose-500">*</span>
+                Execution Status <span className="text-rose-500">*</span>
               </label>
               <select
                 value={statusForm.status}
@@ -1270,7 +1286,7 @@ export const TasksPage = ({
               </label>
               <textarea
                 rows={3}
-                value={statusForm.notes}
+                value={statusForm.notes || ''}
                 onChange={(e) => setStatusForm({ ...statusForm, notes: e.target.value })}
                 placeholder="Add brief notes regarding your progress or findings..."
                 className="w-full px-3 py-2 text-sm rounded-xl border border-gray/20 dark:border-gray/15 bg-offwhite/50 dark:bg-[#151726]/60 text-darkblue dark:text-offwhite focus:outline-none focus:ring-2 focus:ring-lightblue/30 resize-none"
