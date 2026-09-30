@@ -3,6 +3,7 @@ import { User, Lock, Eye, EyeOff } from 'lucide-react'
 import { TextInput } from '../components/TextInput'
 import { Button } from '../components/Buttons'
 import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import type { LoginFormState, LoginFormErrors, LoginProps } from '../types'
 import logoImg from '../assets/images/logos/logo.png'
@@ -62,6 +63,16 @@ export const Login = ({ onSuccess, onForgotPassword }: LoginProps) => {
     setErrors({})
     try {
       const user = await signIn(formData.username.trim(), formData.password)
+      if (user?.uid && user?.email) {
+        try {
+          await supabase
+            .from('profiles')
+            .update({ email: user.email })
+            .eq('firebase_uid', user.uid)
+        } catch {
+          // Ignore profile sync error on login
+        }
+      }
       onSuccess?.(user)
     } catch (err: unknown) {
       const firebaseError = err as { code?: string }

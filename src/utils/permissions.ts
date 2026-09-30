@@ -270,6 +270,68 @@ export const checkCanViewCoordinators = (
 }
 
 /**
+ * Checks if user has permission to view users.
+ */
+export const checkCanViewUsers = (
+  permissions: PermissionRow[] | null | undefined
+): boolean => {
+  return (
+    hasPermission(permissions, 'users', 'view') ||
+    hasPermission(permissions, 'users', 'read') ||
+    hasPermission(permissions, 'users', 'select') ||
+    hasPermissionName(permissions, 'View Users') ||
+    hasPermissionName(permissions, 'view_users')
+  )
+}
+
+/**
+ * Checks if user has permission to create/add new users.
+ */
+export const checkCanCreateUser = (
+  permissions: PermissionRow[] | null | undefined
+): boolean => {
+  return (
+    hasPermission(permissions, 'users', 'add') ||
+    hasPermission(permissions, 'users', 'create') ||
+    hasPermission(permissions, 'users', 'insert') ||
+    hasPermissionName(permissions, 'Add Users') ||
+    hasPermissionName(permissions, 'Create Users') ||
+    hasPermissionName(permissions, 'create_user') ||
+    hasPermissionName(permissions, 'add_user')
+  )
+}
+
+export const checkCanAddUser = checkCanCreateUser
+
+/**
+ * Checks if user has permission to edit user details / roles.
+ */
+export const checkCanEditUser = (
+  permissions: PermissionRow[] | null | undefined
+): boolean => {
+  return (
+    hasPermission(permissions, 'users', 'edit') ||
+    hasPermission(permissions, 'users', 'update') ||
+    hasPermissionName(permissions, 'Edit Users') ||
+    hasPermissionName(permissions, 'edit_user')
+  )
+}
+
+/**
+ * Checks if user has permission to delete users.
+ */
+export const checkCanDeleteUser = (
+  permissions: PermissionRow[] | null | undefined
+): boolean => {
+  return (
+    hasPermission(permissions, 'users', 'delete') ||
+    hasPermission(permissions, 'users', 'remove') ||
+    hasPermissionName(permissions, 'Delete Users') ||
+    hasPermissionName(permissions, 'delete_user')
+  )
+}
+
+/**
  * Checks if user has permission to view roles and permissions.
  */
 export const checkCanViewRoles = (
@@ -278,9 +340,9 @@ export const checkCanViewRoles = (
   return (
     hasPermission(permissions, 'roles', 'view') ||
     hasPermission(permissions, 'roles', 'read') ||
-    hasPermission(permissions, 'users', 'view') ||
+    hasPermission(permissions, 'permissions', 'view') ||
+    hasPermission(permissions, 'permissions', 'read') ||
     hasPermissionName(permissions, 'View Roles') ||
-    hasPermissionName(permissions, 'View Users') ||
     hasPermissionName(permissions, 'view_roles')
   )
 }
@@ -295,9 +357,8 @@ export const checkCanCreateRole = (
     hasPermission(permissions, 'roles', 'add') ||
     hasPermission(permissions, 'roles', 'create') ||
     hasPermission(permissions, 'roles', 'insert') ||
-    hasPermission(permissions, 'users', 'add') ||
     hasPermissionName(permissions, 'Add Roles') ||
-    hasPermissionName(permissions, 'Add Users') ||
+    hasPermissionName(permissions, 'Create Roles') ||
     hasPermissionName(permissions, 'create_role')
   )
 }
@@ -311,9 +372,7 @@ export const checkCanEditRole = (
   return (
     hasPermission(permissions, 'roles', 'edit') ||
     hasPermission(permissions, 'roles', 'update') ||
-    hasPermission(permissions, 'users', 'edit') ||
     hasPermissionName(permissions, 'Edit Roles') ||
-    hasPermissionName(permissions, 'Edit Users') ||
     hasPermissionName(permissions, 'edit_role')
   )
 }
@@ -328,11 +387,10 @@ export const checkCanManagePermissions = (
     hasPermission(permissions, 'permissions', 'edit') ||
     hasPermission(permissions, 'permissions', 'update') ||
     hasPermission(permissions, 'role_permissions', 'manage') ||
-    hasPermission(permissions, 'roles', 'edit') ||
-    hasPermission(permissions, 'users', 'edit') ||
+    hasPermission(permissions, 'role_permissions', 'edit') ||
+    hasPermission(permissions, 'role_permissions', 'update') ||
     hasPermissionName(permissions, 'Manage Permissions') ||
     hasPermissionName(permissions, 'Edit Permissions') ||
-    hasPermissionName(permissions, 'Edit Roles') ||
     hasPermissionName(permissions, 'manage_permissions')
   )
 }
@@ -346,9 +404,7 @@ export const checkCanDeleteRole = (
   return (
     hasPermission(permissions, 'roles', 'delete') ||
     hasPermission(permissions, 'roles', 'remove') ||
-    hasPermission(permissions, 'users', 'delete') ||
     hasPermissionName(permissions, 'Delete Roles') ||
-    hasPermissionName(permissions, 'Delete Users') ||
     hasPermissionName(permissions, 'delete_role')
   )
 }

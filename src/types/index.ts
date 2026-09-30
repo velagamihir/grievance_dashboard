@@ -440,6 +440,52 @@ export interface CoordinatorStatItem {
   color: string
 }
 
+export interface UsersPageProps {
+  isDark: boolean
+  onToggleTheme: () => void
+  currentPath?: string
+  onNavigate?: (path: string) => void
+}
+
+export interface UserItem {
+  firebase_uid: string
+  email: string
+  displayName?: string | null
+  role: string
+  roleDescription?: string | null
+  createdAt?: string | null
+  isCurrentUser?: boolean
+}
+
+export interface CreateUserFormData {
+  email: string
+  password: string
+  displayName?: string
+  role: string
+}
+
+export interface UpdateUserRoleFormData {
+  firebase_uid: string
+  role: string
+  email?: string
+  displayName?: string
+}
+
+export type UpdateUserFormData = UpdateUserRoleFormData
+
+export interface UserStatItem {
+  title: string
+  count: string | number
+  change: string
+  icon: ComponentType<{ className?: string }>
+  color: string
+}
+
+export interface UsersToast {
+  type: 'success' | 'error' | 'info'
+  message: string
+}
+
 // ==========================================
 // Form Validation Types
 // ==========================================
@@ -501,6 +547,9 @@ export interface PermissionRow {
 export interface ProfileRow {
   firebase_uid: string
   role: string
+  email?: string | null
+  display_name?: string | null
+  created_at?: string | null
 }
 
 export interface RolePermissionRow {

@@ -37,6 +37,10 @@ export const Drawer: React.FC<DrawerProps> = ({
     canEditRole,
     canChangePermissions,
     canDeleteRole,
+    canViewUsers,
+    canCreateUser,
+    canEditUser,
+    canDeleteUser,
     loading: permissionsLoading,
   } = usePermissions()
 
@@ -125,7 +129,13 @@ export const Drawer: React.FC<DrawerProps> = ({
 
       // 5. Users category
       if (p === '/users' || p.includes('user') || name.includes('user')) {
-        return permissions.some((perm) => (perm.resource || '').toLowerCase().trim() === 'users')
+        const hasUsersPerms =
+          canViewUsers ||
+          canCreateUser ||
+          canEditUser ||
+          canDeleteUser ||
+          permissions.some((perm) => (perm.resource || '').toLowerCase().trim() === 'users')
+        return hasUsersPerms
       }
 
       // 6. Generic resource match from path or name
@@ -156,6 +166,10 @@ export const Drawer: React.FC<DrawerProps> = ({
       canEditRole,
       canChangePermissions,
       canDeleteRole,
+      canViewUsers,
+      canCreateUser,
+      canEditUser,
+      canDeleteUser,
       permissions,
     ]
   )
@@ -222,9 +236,19 @@ export const Drawer: React.FC<DrawerProps> = ({
           }
         }
 
-        // Include Roles & Permissions route candidate if user is admin / super_admin
+        // Include Users Management route candidate if user is admin / super_admin or has users permission
         const normalizedRole = userRole?.toLowerCase().trim() || ''
         const isAdmin = normalizedRole === 'super_admin' || normalizedRole === 'admin'
+        if ((isAdmin || canViewUsers) && !resolvedRoutes.some((r) => r.path === '/users')) {
+          resolvedRoutes.push({
+            name: 'Users Management',
+            path: '/users',
+            icon: 'users',
+            sort_order: 98,
+          })
+        }
+
+        // Include Roles & Permissions route candidate if user is admin / super_admin
         if (isAdmin && !resolvedRoutes.some((r) => r.path === '/roles')) {
           resolvedRoutes.push({
             name: 'Roles & Permissions',
@@ -255,7 +279,7 @@ export const Drawer: React.FC<DrawerProps> = ({
     return () => {
       isMounted = false
     }
-  }, [user, permRole, permissionsLoading])
+  }, [user, permRole, permissionsLoading, canViewUsers])
 
   const handleItemClick = (path: string) => {
     if (onNavigate) {

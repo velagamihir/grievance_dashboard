@@ -19,6 +19,10 @@ import {
   checkCanEditRole,
   checkCanManagePermissions,
   checkCanDeleteRole,
+  checkCanViewUsers,
+  checkCanCreateUser,
+  checkCanEditUser,
+  checkCanDeleteUser,
   checkCanTriggerWorkflow1,
   checkCanTriggerWorkflow2,
   checkCanTriggerWorkflows,
@@ -62,6 +66,11 @@ export interface UserPermissionsState {
   canChangePermissions: boolean
   canManagePermissions: boolean
   canDeleteRole: boolean
+  canViewUsers: boolean
+  canCreateUser: boolean
+  canAddUser: boolean
+  canEditUser: boolean
+  canDeleteUser: boolean
   refreshPermissions: () => Promise<void>
 }
 
@@ -211,9 +220,9 @@ export function usePermissions(): UserPermissionsState {
   const canEditStatus = isSuper || checkCanEditStatus(permissions)
   const canDeleteGrievance = isSuper || checkCanDeleteGrievance(permissions)
   const canViewAllGrievances = isSuper || checkCanViewAllGrievances(permissions)
-  const canTriggerWorkflow1 = isSuper || isSuperOrAdmin || checkCanTriggerWorkflow1(permissions)
-  const canTriggerWorkflow2 = isSuper || isSuperOrAdmin || checkCanTriggerWorkflow2(permissions)
-  const canTriggerWorkflows = isSuper || isSuperOrAdmin || checkCanTriggerWorkflows(permissions)
+  const canTriggerWorkflow1 = isSuper || checkCanTriggerWorkflow1(permissions)
+  const canTriggerWorkflow2 = isSuper || checkCanTriggerWorkflow2(permissions)
+  const canTriggerWorkflows = isSuper || checkCanTriggerWorkflows(permissions)
   const canManageCoordinators = isSuper || checkCanManageCoordinators(permissions)
   const canViewCoordinators = isSuper || checkCanViewCoordinators(permissions)
   const canCreateCoordinator = isSuper || checkCanCreateCoordinator(permissions)
@@ -221,13 +230,19 @@ export function usePermissions(): UserPermissionsState {
   const canEditCoordinator = isSuper || checkCanEditCoordinator(permissions)
   const canDeleteCoordinator = isSuper || checkCanDeleteCoordinator(permissions)
 
-  const canViewRoles = isSuper || isSuperOrAdmin || checkCanViewRoles(permissions)
-  const canCreateRole = isSuper || isSuperOrAdmin || checkCanCreateRole(permissions)
+  const canViewRoles = isSuper || checkCanViewRoles(permissions)
+  const canCreateRole = isSuper || checkCanCreateRole(permissions)
   const canAddRole = canCreateRole
-  const canEditRole = isSuper || isSuperOrAdmin || checkCanEditRole(permissions)
-  const canChangePermissions = isSuper || isSuperOrAdmin || checkCanManagePermissions(permissions)
+  const canEditRole = isSuper || checkCanEditRole(permissions)
+  const canChangePermissions = isSuper || checkCanManagePermissions(permissions)
   const canManagePermissions = canChangePermissions
-  const canDeleteRole = isSuper || isSuperOrAdmin || checkCanDeleteRole(permissions)
+  const canDeleteRole = isSuper || checkCanDeleteRole(permissions)
+
+  const canViewUsers = isSuper || checkCanViewUsers(permissions)
+  const canCreateUser = isSuper || checkCanCreateUser(permissions)
+  const canAddUser = canCreateUser
+  const canEditUser = isSuper || checkCanEditUser(permissions)
+  const canDeleteUser = isSuper || checkCanDeleteUser(permissions)
 
   return {
     role,
@@ -259,6 +274,11 @@ export function usePermissions(): UserPermissionsState {
     canChangePermissions,
     canManagePermissions,
     canDeleteRole,
+    canViewUsers,
+    canCreateUser,
+    canAddUser,
+    canEditUser,
+    canDeleteUser,
     refreshPermissions: fetchPermissions,
   }
 }

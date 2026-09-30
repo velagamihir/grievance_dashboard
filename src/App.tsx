@@ -7,6 +7,7 @@ import { Home } from './pages/Home'
 import { BlockCoordinators } from './pages/BlockCoordinators'
 import { GrievancePage } from './pages/GrievancePage'
 import { RolesPage } from './pages/RolesPage'
+import { UsersPage } from './pages/UsersPage'
 import type { MainRouterProps } from './types'
 
 function MainRouter({ isDark, onToggleTheme }: MainRouterProps) {
@@ -68,6 +69,21 @@ function MainRouter({ isDark, onToggleTheme }: MainRouterProps) {
           />
         )}
       </div>
+    )
+  }
+
+  if (
+    currentPath === '/users' ||
+    currentPath === '/users-management' ||
+    currentPath.startsWith('/users')
+  ) {
+    return (
+      <UsersPage
+        isDark={isDark}
+        onToggleTheme={onToggleTheme}
+        currentPath={currentPath}
+        onNavigate={handleNavigate}
+      />
     )
   }
 
