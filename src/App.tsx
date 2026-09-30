@@ -9,6 +9,7 @@ import { GrievancePage } from './pages/GrievancePage'
 import { RolesPage } from './pages/RolesPage'
 import { UsersPage } from './pages/UsersPage'
 import { TasksPage } from './pages/TasksPage'
+import { WorklogsPage } from './pages/WorklogsPage'
 import type { MainRouterProps } from './types'
 
 function MainRouter({ isDark, onToggleTheme }: MainRouterProps) {
@@ -145,6 +146,23 @@ function MainRouter({ isDark, onToggleTheme }: MainRouterProps) {
   ) {
     return (
       <TasksPage
+        isDark={isDark}
+        onToggleTheme={onToggleTheme}
+        currentPath={currentPath}
+        onNavigate={handleNavigate}
+      />
+    )
+  }
+
+  if (
+    currentPath === '/worklogs' ||
+    currentPath === '/work-logs' ||
+    currentPath === '/worklog' ||
+    currentPath.startsWith('/worklogs') ||
+    currentPath.startsWith('/work-logs')
+  ) {
+    return (
+      <WorklogsPage
         isDark={isDark}
         onToggleTheme={onToggleTheme}
         currentPath={currentPath}

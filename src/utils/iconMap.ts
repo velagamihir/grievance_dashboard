@@ -54,6 +54,8 @@ export const iconMap: Record<string, LucideIcon> = {
   grievances: Inbox,
   tasks: ListTodo,
   works: ListTodo,
+  worklogs: FileText,
+  'work-logs': FileText,
   'clipboard-list': ListTodo,
   'check-square': ListTodo,
 }

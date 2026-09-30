@@ -665,6 +665,58 @@ export interface TasksPageProps {
   onNavigate?: (path: string) => void
 }
 
+export interface WorklogStatItem {
+  title: string
+  count: number | string
+  change: string
+  icon: LucideIcon
+  color: string
+}
+
+export interface WorklogRow {
+  id: number
+  task_id: number | null
+  user_uid: string
+  title: string
+  description: string | null
+  category: string
+  hours_spent: number
+  log_source: 'Manual' | 'Task Completion'
+  completed_at: string
+  created_at: string
+  updated_at: string
+}
+
+export interface WorklogWithUser extends WorklogRow {
+  userProfile?: ProfileRow | null
+  task?: TaskRow | null
+}
+
+export interface CreateWorklogFormData {
+  title: string
+  description?: string
+  category: string
+  hours_spent: number
+  completed_at: string
+  user_uid?: string
+}
+
+export interface UpdateWorklogFormData {
+  id: number
+  title: string
+  description?: string
+  category: string
+  hours_spent: number
+  completed_at: string
+}
+
+export interface WorklogsPageProps {
+  isDark: boolean
+  onToggleTheme: () => void
+  currentPath?: string
+  onNavigate?: (path: string) => void
+}
+
 export interface DatabaseSchema {
   block_coordinators: BlockCoordinatorRow
   form_responses: FormResponseRow
@@ -677,6 +729,7 @@ export interface DatabaseSchema {
   sources: SourceRow
   tasks: TaskRow
   task_assignments: TaskAssignmentRow
+  worklogs: WorklogRow
 }
 
 

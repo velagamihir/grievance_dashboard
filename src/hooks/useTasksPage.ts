@@ -464,6 +464,37 @@ export function useTasksPage() {
             .in('user_uid', toRemove)
         }
 
+        // Sync worklog if overall status is marked Completed
+        if (formData.status === 'Completed' && user) {
+          try {
+            const { data: existingLog } = await supabase
+              .from('worklogs')
+              .select('id')
+              .eq('task_id', formData.id)
+              .eq('user_uid', user.uid)
+              .maybeSingle()
+
+            if (!existingLog) {
+              await supabase.from('worklogs').insert([
+                {
+                  task_id: formData.id,
+                  user_uid: user.uid,
+                  title: formData.title.trim(),
+                  description: formData.description?.trim() || 'Task marked completed via Work edit',
+                  category: 'Task Completion',
+                  hours_spent: 1.0,
+                  log_source: 'Task Completion',
+                  completed_at: new Date().toISOString(),
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                },
+              ])
+            }
+          } catch (logErr) {
+            console.warn('Worklog sync notice:', logErr)
+          }
+        }
+
         await fetchData()
         setIsEditModalOpen(false)
         setActiveTask(null)
@@ -476,7 +507,7 @@ export function useTasksPage() {
         setActionLoading(false)
       }
     },
-    [profiles, fetchData, showToast]
+    [user, profiles, fetchData, showToast]
   )
 
   // 3. Update Individual Assignment Status
@@ -568,10 +599,83 @@ export function useTasksPage() {
             .eq('id', taskIdNum)
         }
 
+        // 4. If status is Completed, automatically record/sync in worklogs table
+        if (isCompleted) {
+          try {
+            // 4a. Fetch fresh task title & details
+            const { data: freshTask } = await supabase
+              .from('tasks')
+              .select('id, title, description')
+              .eq('id', taskIdNum)
+              .maybeSingle()
+
+            const taskDetail = freshTask || tasks.find((t) => t.id === taskIdNum)
+            const logTitle = taskDetail?.title || activeTask?.title || 'Completed Task Assignment'
+            const logDescription =
+              formData.notes?.trim() ||
+              taskDetail?.description ||
+              activeTask?.description ||
+              'Task completed via Work Assignments'
+
+            const { data: existingLog, error: logCheckErr } = await supabase
+              .from('worklogs')
+              .select('id')
+              .eq('task_id', taskIdNum)
+              .eq('user_uid', userUidStr)
+              .maybeSingle()
+
+            if (logCheckErr) {
+              console.warn('Notice checking worklogs:', logCheckErr.message)
+            }
+
+            if (!existingLog) {
+              const { error: insertWorklogErr } = await supabase.from('worklogs').insert([
+                {
+                  task_id: taskIdNum,
+                  user_uid: userUidStr,
+                  title: logTitle,
+                  description: logDescription,
+                  category: 'Task Completion',
+                  hours_spent: 1.0,
+                  log_source: 'Task Completion',
+                  completed_at: new Date().toISOString(),
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                },
+              ])
+
+              if (insertWorklogErr) {
+                console.error('Worklog insert notice/error:', insertWorklogErr.message)
+              }
+            } else {
+              const { error: updateWorklogErr } = await supabase
+                .from('worklogs')
+                .update({
+                  title: logTitle,
+                  description: logDescription,
+                  completed_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', existingLog.id)
+
+              if (updateWorklogErr) {
+                console.error('Worklog update notice/error:', updateWorklogErr.message)
+              }
+            }
+          } catch (worklogErr) {
+            console.warn('Worklog auto-sync notice:', worklogErr)
+          }
+        }
+
         await fetchData()
         setIsStatusUpdateModalOpen(false)
         setIsDetailsModalOpen(false)
-        showToast(`Work status updated to "${formData.status}"!`, 'success')
+        showToast(
+          isCompleted
+            ? `Work completed and logged to Worklogs successfully!`
+            : `Work status updated to "${formData.status}"!`,
+          'success'
+        )
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Failed to update status'
         setModalError(msg)

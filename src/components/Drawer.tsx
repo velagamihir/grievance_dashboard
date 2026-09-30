@@ -145,10 +145,12 @@ export const Drawer: React.FC<DrawerProps> = ({
         return hasUsersPerms
       }
 
-      // 6. Work Assignments / Tasks category
+      // 6. Work Assignments / Tasks & Worklogs category
       if (
         p === '/tasks' ||
         p === '/works' ||
+        p === '/worklogs' ||
+        p === '/work-logs' ||
         p.includes('task') ||
         p.includes('work') ||
         name.includes('task') ||
@@ -163,7 +165,8 @@ export const Drawer: React.FC<DrawerProps> = ({
           permissions.some(
             (perm) =>
               (perm.resource || '').toLowerCase().trim() === 'tasks' ||
-              (perm.resource || '').toLowerCase().trim() === 'works'
+              (perm.resource || '').toLowerCase().trim() === 'works' ||
+              (perm.resource || '').toLowerCase().trim() === 'worklogs'
           )
         return hasTasksPerms
       }
@@ -302,6 +305,16 @@ export const Drawer: React.FC<DrawerProps> = ({
             path: '/tasks',
             icon: 'clipboard-list',
             sort_order: 4,
+          })
+        }
+
+        // Include Worklogs route candidate if permitted
+        if ((isAdmin || canViewTasks) && !resolvedRoutes.some((r) => r.path === '/worklogs')) {
+          resolvedRoutes.push({
+            name: 'Worklogs',
+            path: '/worklogs',
+            icon: 'file-text',
+            sort_order: 5,
           })
         }
 
