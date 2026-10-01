@@ -38,7 +38,11 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
   readOnlyStatus = false,
 }) => {
   const { user } = useAuth()
-  const { canCreateGrievance, loading: permissionsLoading } = usePermissions()
+  const {
+    canCreateGrievance,
+    allowedGrievanceType,
+    loading: permissionsLoading,
+  } = usePermissions()
 
   const [sources, setSources] = useState<string[]>(['Form', 'Web Portal', 'Mobile App', 'Kiosk'])
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
@@ -46,6 +50,9 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
     ...initialGrievanceFormData,
     name: initialData?.name || user?.displayName || user?.email?.split('@')[0] || '',
     email: initialData?.email || user?.email || '',
+    type_of_grievance:
+      initialData?.type_of_grievance ||
+      (allowedGrievanceType ? allowedGrievanceType : initialGrievanceFormData.type_of_grievance),
     ...initialData,
   }))
 
@@ -55,9 +62,12 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
         ...prev,
         name: initialData?.name || prev.name || user.displayName || user.email?.split('@')[0] || '',
         email: initialData?.email || prev.email || user.email || '',
+        type_of_grievance:
+          prev.type_of_grievance ||
+          (allowedGrievanceType ? allowedGrievanceType : prev.type_of_grievance),
       }))
     }
-  }, [user, initialData])
+  }, [user, initialData, allowedGrievanceType])
 
   const [submitting, setSubmitting] = useState(false)
   const [alert, setAlert] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null)
@@ -116,7 +126,8 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
       type: 'select',
       required: true,
       leftIcon: <Layers className="w-4 h-4" />,
-      options: GRIEVANCE_TYPES,
+      options: allowedGrievanceType ? [allowedGrievanceType] : GRIEVANCE_TYPES,
+      disabled: Boolean(allowedGrievanceType),
       colSpan: 1,
     },
     {

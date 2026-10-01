@@ -18,6 +18,7 @@ import {
   Check,
 } from 'lucide-react'
 import { useDocumentTitle, useRolesPage } from '../hooks'
+import { GRIEVANCE_TYPES } from '../utils'
 import {
   Button,
   Drawer,
@@ -93,6 +94,7 @@ export const RolesPage: React.FC<RolesPageProps> = ({
   const [addForm, setAddForm] = useState({
     name: '',
     description: '',
+    allowed_grievance_type: 'All Types',
     selectedPermIds: [] as number[],
   })
 
@@ -100,6 +102,7 @@ export const RolesPage: React.FC<RolesPageProps> = ({
   const [editForm, setEditForm] = useState({
     name: '',
     description: '',
+    allowed_grievance_type: 'All Types',
   })
 
   // State for Change Permissions Modal
@@ -111,6 +114,7 @@ export const RolesPage: React.FC<RolesPageProps> = ({
     setAddForm({
       name: '',
       description: '',
+      allowed_grievance_type: 'All Types',
       selectedPermIds: [],
     })
     handleOpenAdd()
@@ -121,6 +125,7 @@ export const RolesPage: React.FC<RolesPageProps> = ({
     setEditForm({
       name: r.name || '',
       description: r.description || '',
+      allowed_grievance_type: r.allowed_grievance_type || 'All Types',
     })
     handleOpenEdit(r)
   }
@@ -150,6 +155,7 @@ export const RolesPage: React.FC<RolesPageProps> = ({
     handleCreateRole({
       name: addForm.name,
       description: addForm.description,
+      allowed_grievance_type: addForm.allowed_grievance_type === 'All Types' ? null : addForm.allowed_grievance_type,
       permissionIds: addForm.selectedPermIds,
     })
   }
@@ -161,6 +167,7 @@ export const RolesPage: React.FC<RolesPageProps> = ({
     handleUpdateRole(activeRole.id, {
       name: editForm.name,
       description: editForm.description,
+      allowed_grievance_type: editForm.allowed_grievance_type === 'All Types' ? null : editForm.allowed_grievance_type,
     })
   }
 
@@ -549,7 +556,7 @@ export const RolesPage: React.FC<RolesPageProps> = ({
                         </div>
                       </div>
 
-                      {/* Meta Tags: Users Assigned + Permission Count */}
+                      {/* Meta Tags: Users Assigned + Permission Count + Category Scope */}
                       <div className="flex items-center gap-2.5 text-xs text-gray flex-wrap">
                         <span className="inline-flex items-center gap-1 bg-offwhite dark:bg-[#20243a] px-2.5 py-1 rounded-lg border border-gray/10">
                           <Users className="w-3.5 h-3.5 text-lightblue" />
@@ -560,6 +567,23 @@ export const RolesPage: React.FC<RolesPageProps> = ({
                           <KeyRound className="w-3.5 h-3.5 text-orange" />
                           <strong>{roleItem.permissions.length}</strong> permissions active
                         </span>
+
+                        {isSuper || isBuiltinAdmin ? (
+                          <span className="inline-flex items-center gap-1 bg-lightblue/10 text-lightblue dark:bg-lightblue/20 px-2.5 py-1 rounded-lg border border-lightblue/20 font-medium">
+                            <Layers className="w-3.5 h-3.5" />
+                            All Grievance Types
+                          </span>
+                        ) : roleItem.allowed_grievance_type ? (
+                          <span className="inline-flex items-center gap-1 bg-purple-500/10 text-purple-600 dark:text-purple-400 dark:bg-purple-500/20 px-2.5 py-1 rounded-lg border border-purple-500/25 font-medium">
+                            <Layers className="w-3.5 h-3.5" />
+                            Scoped: <strong>{roleItem.allowed_grievance_type}</strong>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 bg-offwhite dark:bg-[#20243a] px-2.5 py-1 rounded-lg border border-gray/10 text-gray">
+                            <Layers className="w-3.5 h-3.5" />
+                            All Grievance Types
+                          </span>
+                        )}
                       </div>
 
                       {/* Permission Badges Preview */}
@@ -650,6 +674,33 @@ export const RolesPage: React.FC<RolesPageProps> = ({
             value={addForm.description}
             onChange={(e) => setAddForm((prev) => ({ ...prev, description: e.target.value }))}
           />
+
+          {/* Assigned Grievance Type Restriction */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-darkblue dark:text-offwhite uppercase tracking-wider block">
+              Assigned Grievance Type (Department Scope)
+            </label>
+            <div className="relative">
+              <select
+                value={addForm.allowed_grievance_type}
+                onChange={(e) => setAddForm((prev) => ({ ...prev, allowed_grievance_type: e.target.value }))}
+                className="w-full appearance-none bg-offwhite dark:bg-[#151726] border border-gray/20 hover:border-lightblue/40 rounded-xl px-3.5 py-2 text-xs font-semibold text-darkblue dark:text-offwhite focus:outline-none focus:ring-2 focus:ring-lightblue/25 cursor-pointer transition-all shadow-xs"
+              >
+                <option value="All Types" className="bg-white dark:bg-[#1a1d2e] text-darkblue dark:text-offwhite font-semibold">
+                  All Types (Unrestricted access to all grievances)
+                </option>
+                {GRIEVANCE_TYPES.map((type) => (
+                  <option key={type} value={type} className="bg-white dark:bg-[#1a1d2e] text-darkblue dark:text-offwhite font-normal">
+                    {type} (Restrict this role to {type} only)
+                  </option>
+                ))}
+              </select>
+              <span className="pointer-events-none absolute right-3 top-2.5 text-xs text-gray opacity-60">▾</span>
+            </div>
+            <p className="text-[11px] text-gray">
+              If restricted, users with this role will only be allowed to view and update the status of grievances in this category.
+            </p>
+          </div>
 
           {/* Initial Permissions Selection */}
           <div className="space-y-2 pt-2 border-t border-gray/15">
@@ -780,6 +831,33 @@ export const RolesPage: React.FC<RolesPageProps> = ({
               value={editForm.description}
               onChange={(e) => setEditForm((prev) => ({ ...prev, description: e.target.value }))}
             />
+
+            {/* Assigned Grievance Type Restriction */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-darkblue dark:text-offwhite uppercase tracking-wider block">
+                Assigned Grievance Type (Department Scope)
+              </label>
+              <div className="relative">
+                <select
+                  value={editForm.allowed_grievance_type}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, allowed_grievance_type: e.target.value }))}
+                  className="w-full appearance-none bg-offwhite dark:bg-[#151726] border border-gray/20 hover:border-lightblue/40 rounded-xl px-3.5 py-2 text-xs font-semibold text-darkblue dark:text-offwhite focus:outline-none focus:ring-2 focus:ring-lightblue/25 cursor-pointer transition-all shadow-xs"
+                >
+                  <option value="All Types" className="bg-white dark:bg-[#1a1d2e] text-darkblue dark:text-offwhite font-semibold">
+                    All Types (Unrestricted access to all grievances)
+                  </option>
+                  {GRIEVANCE_TYPES.map((type) => (
+                    <option key={type} value={type} className="bg-white dark:bg-[#1a1d2e] text-darkblue dark:text-offwhite font-normal">
+                      {type} (Restrict this role to {type} only)
+                    </option>
+                  ))}
+                </select>
+                <span className="pointer-events-none absolute right-3 top-2.5 text-xs text-gray opacity-60">▾</span>
+              </div>
+              <p className="text-[11px] text-gray">
+                Assigning a specific type ensures this role can only view and update the status of grievances in that category.
+              </p>
+            </div>
 
             <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 pt-3 border-t border-gray/15">
               <Button

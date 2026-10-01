@@ -542,14 +542,21 @@ export const UsersPage: React.FC<UsersPageProps> = ({
 
                         {/* Role Badge */}
                         <td className="py-4 px-4">
-                          <div className="flex flex-col items-start gap-0.5">
-                            <ListBadge
-                              variant={getRoleBadgeVariant(userItem.role)}
-                              size="sm"
-                              icon={<Shield className="w-3 h-3" />}
-                            >
-                              {userItem.role}
-                            </ListBadge>
+                          <div className="flex flex-col items-start gap-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <ListBadge
+                                variant={getRoleBadgeVariant(userItem.role)}
+                                size="sm"
+                                icon={<Shield className="w-3 h-3" />}
+                              >
+                                {userItem.role}
+                              </ListBadge>
+                              {userItem.roleAllowedGrievanceType && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-orange/15 text-orange border border-orange/30">
+                                  <span>{userItem.roleAllowedGrievanceType}</span>
+                                </span>
+                              )}
+                            </div>
                             {userItem.roleDescription && (
                               <span className="text-[10px] text-gray dark:text-gray/60 line-clamp-1 max-w-[180px]">
                                 {userItem.roleDescription}

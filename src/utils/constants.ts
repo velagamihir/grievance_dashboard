@@ -1,6 +1,11 @@
 import type { GrievanceFormData } from '../types'
 
 export const GRIEVANCE_TYPES: string[] = [
+  "Infrastructure(lights, fans, ac's, Smart boards, benches)",
+  'Hostel',
+  'Academic',
+  'Transport',
+  'Cleanliness/Sanitization',
   'Hostel & Accommodation',
   'Academic & Faculty',
   'Bus & Transportation',

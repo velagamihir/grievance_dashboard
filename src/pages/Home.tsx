@@ -3,6 +3,7 @@ import {
   Inbox,
   TrendingUp,
   RefreshCw,
+  Layers,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -17,7 +18,7 @@ import {
   getUserDisplayName,
   getGrievanceLocation,
 } from '../utils'
-import type { HomeProps, FormResponseRow } from '../types'
+import type { HomeProps, FormResponseRow, DashboardStatItem } from '../types'
 
 export const Home = ({
   isDark,
@@ -27,7 +28,14 @@ export const Home = ({
 }: HomeProps) => {
   useDocumentTitle('Dashboard | Grievance Portal')
   const { user, signOutUser } = useAuth()
-  const { role, displayName, canViewAllGrievances, loading: permissionsLoading } = usePermissions()
+  const {
+    role,
+    displayName,
+    allowedGrievanceType,
+    canAccessGrievanceType,
+    canViewAllGrievances,
+    loading: permissionsLoading,
+  } = usePermissions()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [grievances, setGrievances] = useState<FormResponseRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -49,14 +57,18 @@ export const Home = ({
       if (error) {
         setGrievances([])
       } else {
-        setGrievances(data || [])
+        const raw = (data as FormResponseRow[]) || []
+        const scoped = !allowedGrievanceType
+          ? raw
+          : raw.filter((g) => canAccessGrievanceType(g.type_of_grievance))
+        setGrievances(scoped)
       }
     } catch {
       setGrievances([])
     } finally {
       setLoading(false)
     }
-  }, [canViewAllGrievances])
+  }, [canViewAllGrievances, allowedGrievanceType, canAccessGrievanceType])
 
   useEffect(() => {
     if (!permissionsLoading) {
@@ -102,9 +114,17 @@ export const Home = ({
         {/* Welcome Banner */}
         <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-darkblue via-[#4a5494] to-lightblue p-5 sm:p-8 text-offwhite shadow-xl shadow-darkblue/10">
           <div className="relative z-10 max-w-2xl space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 text-xs font-semibold backdrop-blur-xs">
-              <TrendingUp className="w-3.5 h-3.5 text-orange" />
-              Real-time Grievance Analytics
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 text-xs font-semibold backdrop-blur-xs">
+                <TrendingUp className="w-3.5 h-3.5 text-orange" />
+                Real-time Grievance Analytics
+              </div>
+              {allowedGrievanceType && (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange/25 border border-orange/40 text-xs font-bold text-orange backdrop-blur-xs">
+                  <Layers className="w-3.5 h-3.5" />
+                  Showing: {allowedGrievanceType} Only
+                </div>
+              )}
             </div>
             <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight">
               Welcome back, {userDisplayName}
@@ -121,7 +141,7 @@ export const Home = ({
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-5">
-          {stats.map((item) => {
+          {stats.map((item: DashboardStatItem) => {
             const Icon = item.icon
             return (
               <div
@@ -205,7 +225,7 @@ export const Home = ({
                     </td>
                   </tr>
                 ) : (
-                  recentGrievances.map((item) => (
+                  recentGrievances.map((item: FormResponseRow) => (
                     <tr
                       key={item.id}
                       className="hover:bg-offwhite/60 dark:hover:bg-[#1a1d2e]/60 transition-colors"

@@ -143,6 +143,8 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
     permissionsLoading,
     role,
     displayName,
+    allowedGrievanceType,
+    canUpdateGrievanceStatus,
     user,
     setToast,
     setSearchQuery,
@@ -169,6 +171,14 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
     if (item.status === 'Resolved') {
       setToast({
         message: 'This grievance is marked as Resolved and its status cannot be changed back.',
+        type: 'error',
+      })
+      return
+    }
+
+    if (!canUpdateGrievanceStatus(item)) {
+      setToast({
+        message: `Permission Denied: Your assigned role (${role || 'User'}) is restricted to "${allowedGrievanceType}" grievances.`,
         type: 'error',
       })
       return
@@ -380,9 +390,17 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
         {/* Banner Section */}
         <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-darkblue via-[#404a8b] to-lightblue p-5 sm:p-8 text-offwhite shadow-xl shadow-darkblue/10">
           <div className="relative z-10 max-w-2xl space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 text-xs font-semibold backdrop-blur-xs">
-              <Sparkles className="w-3.5 h-3.5 text-orange" />
-              Role-Based Grievance Operations
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 text-xs font-semibold backdrop-blur-xs">
+                <Sparkles className="w-3.5 h-3.5 text-orange" />
+                Role-Based Grievance Operations
+              </div>
+              {allowedGrievanceType && (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange/25 border border-orange/40 text-xs font-bold text-orange backdrop-blur-xs">
+                  <Layers className="w-3.5 h-3.5" />
+                  Scoped: {allowedGrievanceType} Grievances Only
+                </div>
+              )}
             </div>
             <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight">
               Grievance Records &amp; Actions
@@ -493,38 +511,45 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
             pageSize={6}
             headerActions={
               <div className="flex items-center gap-2 flex-wrap justify-end">
-                {/* Type of Grievance Dropdown Filter */}
-                <div className="relative flex items-center min-w-[150px] sm:min-w-[185px]">
-                  <div className="absolute left-2.5 pointer-events-none text-lightblue dark:text-orange">
+                {/* Type of Grievance Filter or Scoped Category Badge */}
+                {allowedGrievanceType ? (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange/15 border border-orange/30 text-xs font-bold text-orange shadow-xs">
                     <Layers className="w-3.5 h-3.5" />
+                    <span>Category: {allowedGrievanceType}</span>
                   </div>
-                  <select
-                    value={typeFilter}
-                    onChange={(e) => setTypeFilter(e.target.value)}
-                    className="w-full appearance-none bg-offwhite dark:bg-[#151726] border border-gray/20 hover:border-lightblue/40 dark:hover:border-lightblue/40 rounded-xl pl-8 pr-7 py-1.5 text-xs font-semibold text-darkblue dark:text-offwhite focus:outline-none focus:ring-2 focus:ring-lightblue/25 cursor-pointer transition-all shadow-xs"
-                    title="Filter by Type of Grievance"
-                    aria-label="Filter by Type of Grievance"
-                  >
-                    <option value="All">All Categories ({grievances.length})</option>
-                    {availableGrievanceTypes
-                      .filter((t) => t !== 'All')
-                      .map((type) => {
-                        const count = grievances.filter(
-                          (g) => (g.type_of_grievance || '').toLowerCase() === type.toLowerCase()
-                        ).length
-                        return (
-                          <option
-                            key={type}
-                            value={type}
-                            className="bg-white dark:bg-[#1a1d2e] text-darkblue dark:text-offwhite font-normal"
-                          >
-                            {type} ({count})
-                          </option>
-                        )
-                      })}
-                  </select>
-                  <span className="pointer-events-none absolute right-2.5 text-xs text-gray opacity-60">▾</span>
-                </div>
+                ) : (
+                  <div className="relative flex items-center min-w-[150px] sm:min-w-[185px]">
+                    <div className="absolute left-2.5 pointer-events-none text-lightblue dark:text-orange">
+                      <Layers className="w-3.5 h-3.5" />
+                    </div>
+                    <select
+                      value={typeFilter}
+                      onChange={(e) => setTypeFilter(e.target.value)}
+                      className="w-full appearance-none bg-offwhite dark:bg-[#151726] border border-gray/20 hover:border-lightblue/40 dark:hover:border-lightblue/40 rounded-xl pl-8 pr-7 py-1.5 text-xs font-semibold text-darkblue dark:text-offwhite focus:outline-none focus:ring-2 focus:ring-lightblue/25 cursor-pointer transition-all shadow-xs"
+                      title="Filter by Type of Grievance"
+                      aria-label="Filter by Type of Grievance"
+                    >
+                      <option value="All">All Categories ({grievances.length})</option>
+                      {availableGrievanceTypes
+                        .filter((t) => t !== 'All')
+                        .map((type) => {
+                          const count = grievances.filter(
+                            (g) => (g.type_of_grievance || '').toLowerCase() === type.toLowerCase()
+                          ).length
+                          return (
+                            <option
+                              key={type}
+                              value={type}
+                              className="bg-white dark:bg-[#1a1d2e] text-darkblue dark:text-offwhite font-normal"
+                            >
+                              {type} ({count})
+                            </option>
+                          )
+                        })}
+                    </select>
+                    <span className="pointer-events-none absolute right-2.5 text-xs text-gray opacity-60">▾</span>
+                  </div>
+                )}
 
                 <Button
                   variant="outline"
@@ -648,61 +673,68 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
                   trailing={
                     <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2.5">
                       {/* Interactive Status Dropdown */}
-                      <div className="relative flex items-center">
-                        <select
-                          value={item.status || 'Not Yet Started'}
-                          onChange={(e) => onStatusSelectChange(item, e.target.value)}
-                          disabled={!canEditStatus || item.status === 'Resolved'}
-                          title={
-                            item.status === 'Resolved'
-                              ? 'This grievance is marked as Resolved and cannot be changed back.'
-                              : !canEditStatus
-                                ? 'Permission Denied: Only authorized coordinators & admins can change status'
-                                : 'Change grievance status'
-                          }
-                          className={`appearance-none text-xs font-semibold py-1.5 pl-3 pr-8 rounded-xl border transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-lightblue/30 ${
-                            item.status === 'Resolved'
-                              ? 'bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/30 cursor-not-allowed opacity-90'
-                              : !canEditStatus
-                                ? 'cursor-not-allowed opacity-60'
-                                : 'cursor-pointer'
-                          } ${
-                            item.status === 'In progress'
-                              ? 'bg-lightblue/15 text-lightblue dark:text-lightblue border-lightblue/30'
-                              : item.status === 'Issue mail sent'
-                                ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30'
-                                : item.status === 'Final mail sent'
-                                  ? 'bg-darkblue/15 text-darkblue dark:text-offwhite border-darkblue/30'
-                                  : item.status === 'Resolved'
-                                    ? ''
-                                    : 'bg-orange/15 text-orange border-orange/30'
-                          }`}
-                        >
-                          {STATUS_OPTIONS.map((opt) => (
-                            <option
-                              key={opt.value}
-                              value={opt.value}
-                              className="bg-white dark:bg-[#1a1d2e] text-darkblue dark:text-offwhite font-normal"
+                      {(() => {
+                        const isCategoryAllowed = canUpdateGrievanceStatus(item)
+                        const isStatusDisabled = !canEditStatus || item.status === 'Resolved' || !isCategoryAllowed
+
+                        return (
+                          <div className="relative flex items-center">
+                            <select
+                              value={item.status || 'Not Yet Started'}
+                              onChange={(e) => onStatusSelectChange(item, e.target.value)}
+                              disabled={isStatusDisabled}
+                              title={
+                                item.status === 'Resolved'
+                                  ? 'This grievance is marked as Resolved and cannot be changed back.'
+                                  : !canEditStatus
+                                    ? 'Permission Denied: Only authorized coordinators & admins can change status'
+                                    : !isCategoryAllowed
+                                      ? `Permission Denied: Your role is restricted to "${allowedGrievanceType}" grievances only`
+                                      : 'Change grievance status'
+                              }
+                              className={`appearance-none text-xs font-semibold py-1.5 pl-3 pr-8 rounded-xl border transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-lightblue/30 ${
+                                item.status === 'Resolved'
+                                  ? 'bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/30 cursor-not-allowed opacity-90'
+                                  : !canEditStatus || !isCategoryAllowed
+                                    ? 'cursor-not-allowed opacity-60'
+                                    : 'cursor-pointer'
+                              } ${
+                                item.status === 'In progress'
+                                  ? 'bg-lightblue/15 text-lightblue dark:text-lightblue border-lightblue/30'
+                                  : item.status === 'Issue mail sent'
+                                    ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30'
+                                    : item.status === 'Final mail sent'
+                                      ? 'bg-darkblue/15 text-darkblue dark:text-offwhite border-darkblue/30'
+                                      : item.status === 'Resolved'
+                                        ? ''
+                                        : 'bg-orange/15 text-orange border-orange/30'
+                              }`}
                             >
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
-                        <span className="pointer-events-none absolute right-2.5 text-xs opacity-60">
-                          ▾
-                        </span>
-                      </div>
+                              {STATUS_OPTIONS.map((opt) => (
+                                <option
+                                  key={opt.value}
+                                  value={opt.value}
+                                  className="bg-white dark:bg-[#1a1d2e] text-darkblue dark:text-offwhite font-normal"
+                                >
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
+                            <span className="pointer-events-none absolute right-2.5 text-xs opacity-60">
+                              ▾
+                            </span>
+                          </div>
+                        )
+                      })()}
 
                       {/* Workflow 1 Trigger - Issue Mail */}
-                      {(() => {
+                      {canTriggerWorkflow1 && (() => {
                         const isEligible = isIssueMailStatus(item.status)
                         const isSubmitting = Boolean(triggeringWorkflow[`${item.id}-flow1`])
-                        const isDisabled = !canTriggerWorkflow1 || !isEligible || isSubmitting
-                        const title = !canTriggerWorkflow1
-                          ? 'Permission Denied: You do not have permission to trigger Workflow 1'
-                          : !isEligible
-                            ? `Only available when status is 'Issue Mail to be Sent' (Current: ${item.status || 'Pending'})`
-                            : `Send Issue Mail (Power Automate) for ${item.name || item.email}`
+                        const isDisabled = !isEligible || isSubmitting
+                        const title = !isEligible
+                          ? `Only available when status is 'Issue Mail to be Sent' (Current: ${item.status || 'Pending'})`
+                          : `Send Issue Mail (Power Automate) for ${item.name || item.email}`
 
                         return (
                           <Button
@@ -712,7 +744,7 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
                             disabled={isDisabled}
                             title={title}
                             className={`p-2 transition-all ${
-                              isEligible && canTriggerWorkflow1
+                              isEligible
                                 ? 'text-lightblue hover:text-lightblue hover:bg-lightblue/10 dark:hover:bg-lightblue/20 border-lightblue/40 shadow-xs'
                                 : 'opacity-40 cursor-not-allowed border-gray/20 text-gray'
                             }`}
@@ -728,15 +760,13 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
                       })()}
 
                       {/* Workflow 2 Trigger - Resolution / Final Mail */}
-                      {(() => {
+                      {canTriggerWorkflow2 && (() => {
                         const isEligible = isFinalMailStatus(item.status)
                         const isSubmitting = Boolean(triggeringWorkflow[`${item.id}-flow2`])
-                        const isDisabled = !canTriggerWorkflow2 || !isEligible || isSubmitting
-                        const title = !canTriggerWorkflow2
-                          ? 'Permission Denied: You do not have permission to trigger Workflow 2'
-                          : !isEligible
-                            ? `Only available when status is 'Final Mail to be Sent' (Current: ${item.status || 'Pending'})`
-                            : `Send Resolution Mail (Power Automate) for ${item.name || item.email}`
+                        const isDisabled = !isEligible || isSubmitting
+                        const title = !isEligible
+                          ? `Only available when status is 'Final Mail to be Sent' (Current: ${item.status || 'Pending'})`
+                          : `Send Resolution Mail (Power Automate) for ${item.name || item.email}`
 
                         return (
                           <Button
@@ -746,7 +776,7 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
                             disabled={isDisabled}
                             title={title}
                             className={`p-2 transition-all ${
-                              isEligible && canTriggerWorkflow2
+                              isEligible
                                 ? 'text-orange hover:text-orange hover:bg-orange/10 dark:hover:bg-orange/20 border-orange/40 shadow-xs'
                                 : 'opacity-40 cursor-not-allowed border-gray/20 text-gray'
                             }`}
@@ -866,7 +896,8 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
                 type: 'select',
                 required: true,
                 leftIcon: <Layers className="w-4 h-4" />,
-                options: GRIEVANCE_TYPES,
+                options: allowedGrievanceType ? [allowedGrievanceType] : GRIEVANCE_TYPES,
+                disabled: Boolean(allowedGrievanceType),
                 colSpan: 1,
               },
               {

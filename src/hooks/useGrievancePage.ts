@@ -24,6 +24,10 @@ export function useGrievancePage() {
   const {
     role,
     displayName,
+    allowedGrievanceType,
+    isAdminOrSuperAdmin,
+    canAccessGrievanceType,
+    canUpdateGrievanceStatus,
     loading: permissionsLoading,
     canViewAllGrievances,
     canCreateGrievance,
@@ -103,7 +107,12 @@ export function useGrievancePage() {
         showToast(`Database error: ${error.message}`, 'error')
         setGrievances([])
       } else if (data) {
-        setGrievances(data as FormResponseRow[])
+        const rawList = data as FormResponseRow[]
+        // Role-based grievance type filter: If allowedGrievanceType is set, filter to only that category
+        const scopedList = !allowedGrievanceType
+          ? rawList
+          : rawList.filter((g) => canAccessGrievanceType(g.type_of_grievance))
+        setGrievances(scopedList)
       }
     } catch {
       showToast('Error connecting to database', 'error')
@@ -112,7 +121,7 @@ export function useGrievancePage() {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [canViewAllGrievances, showToast])
+  }, [canViewAllGrievances, allowedGrievanceType, canAccessGrievanceType, showToast])
 
   useEffect(() => {
     fetchSources()
@@ -137,7 +146,18 @@ export function useGrievancePage() {
     }
 
     const currentItem = grievances.find((g) => g.id === grievanceId)
-    if (currentItem?.status === 'Resolved') {
+    if (!currentItem) return
+
+    // Role Scoped Grievance Type Validation
+    if (!canUpdateGrievanceStatus(currentItem)) {
+      showToast(
+        `Permission Denied: Your assigned role (${role || 'User'}) is restricted to "${allowedGrievanceType}" grievances.`,
+        'error'
+      )
+      return
+    }
+
+    if (currentItem.status === 'Resolved') {
       showToast('This grievance is marked as Resolved and its status cannot be changed back.', 'error')
       return
     }
@@ -164,7 +184,7 @@ export function useGrievancePage() {
       setGrievances(previousGrievances)
       showToast(`Failed to update status in DB: ${err?.message || 'Database error'}`, 'error')
     }
-  }, [canEditStatus, grievances, showToast])
+  }, [canEditStatus, grievances, canUpdateGrievanceStatus, role, allowedGrievanceType, showToast])
 
   // 2. Open Add Grievance Modal
   const handleOpenAddModal = useCallback(() => {
@@ -172,8 +192,14 @@ export function useGrievancePage() {
       showToast('Permission Denied: You do not have permission to file grievances.', 'error')
       return
     }
+    if (allowedGrievanceType) {
+      setFormData((prev) => ({
+        ...prev,
+        type_of_grievance: allowedGrievanceType,
+      }))
+    }
     setIsAddModalOpen(true)
-  }, [canCreateGrievance, showToast])
+  }, [canCreateGrievance, allowedGrievanceType, showToast])
 
   // 3. Open Edit Grievance Modal
   const handleOpenEditModal = useCallback((item: FormResponseRow) => {
@@ -323,22 +349,28 @@ export function useGrievancePage() {
     showToast('Grievance filed successfully!', 'success')
   }, [showToast])
 
-  // Available Grievance Categories (including dynamic DB categories)
+  // Available Grievance Categories (strictly scoped if role has allowedGrievanceType)
   const availableGrievanceTypes = useMemo(() => {
+    if (allowedGrievanceType) {
+      return [allowedGrievanceType]
+    }
     const typesSet = new Set<string>(GRIEVANCE_TYPES)
     grievances.forEach((g) => {
       if (g.type_of_grievance) typesSet.add(g.type_of_grievance)
     })
     return ['All', ...Array.from(typesSet)]
-  }, [grievances])
+  }, [grievances, allowedGrievanceType])
 
   // Filtered by Type for List and Category-specific Stats
   const filteredByTypeGrievances = useMemo(() => {
+    if (allowedGrievanceType) {
+      return grievances.filter((g) => canAccessGrievanceType(g.type_of_grievance))
+    }
     if (typeFilter === 'All') return grievances
     return grievances.filter(
       (g) => (g.type_of_grievance || '').toLowerCase() === typeFilter.toLowerCase()
     )
-  }, [grievances, typeFilter])
+  }, [grievances, typeFilter, allowedGrievanceType, canAccessGrievanceType])
 
   // Fully filtered grievances (Type + Status + Search) for Export
   const fullyFilteredGrievances = useMemo(() => {
@@ -454,6 +486,10 @@ export function useGrievancePage() {
     permissionsLoading,
     role,
     displayName,
+    allowedGrievanceType,
+    isAdminOrSuperAdmin,
+    canAccessGrievanceType,
+    canUpdateGrievanceStatus,
     user,
 
     // Setters & Helpers

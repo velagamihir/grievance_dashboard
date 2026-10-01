@@ -399,17 +399,20 @@ export interface RoleWithPermissions extends RoleRow {
   permissionIds: number[]
   permissions: PermissionRow[]
   assignedUsersCount?: number
+  allowed_grievance_type?: string | null
 }
 
 export interface CreateRoleFormData {
   name: string
   description: string
+  allowed_grievance_type?: string | null
   permissionIds: number[]
 }
 
 export interface UpdateRoleFormData {
   name: string
   description: string
+  allowed_grievance_type?: string | null
 }
 
 export interface RoleStatItem {
@@ -454,6 +457,7 @@ export interface UserItem {
   displayName?: string | null
   role: string
   roleDescription?: string | null
+  roleAllowedGrievanceType?: string | null
   createdAt?: string | null
   isCurrentUser?: boolean
 }
@@ -567,6 +571,7 @@ export interface RoleRow {
   id: number
   name: string
   description: string | null
+  allowed_grievance_type?: string | null
   created_at: string
 }
 

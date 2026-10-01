@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { usePermissions } from './usePermissions'
 import { supabase } from '../lib/supabase'
+import { parseRoleAllowedGrievanceType } from '../utils'
 import type {
   RoleRow,
   PermissionRow,
@@ -144,9 +145,11 @@ export function useRolesPage() {
 
       const roleKey = (r.name || '').toLowerCase().trim()
       const userCount = usersCountByRole.get(roleKey) || 0
+      const allowedType = isSuper ? null : parseRoleAllowedGrievanceType(r)
 
       return {
         ...r,
+        allowed_grievance_type: allowedType,
         permissionIds: grantedIds,
         permissions: grantedPerms,
         assignedUsersCount: userCount,
@@ -253,31 +256,55 @@ export function useRolesPage() {
         setActionLoading(true)
         setModalError(null)
 
-        // Insert into roles
-        const { data: newRoleData, error: roleError } = await supabase
+        const grievanceType =
+          formData.allowed_grievance_type && formData.allowed_grievance_type.trim() !== '' && formData.allowed_grievance_type !== 'All Types' && formData.allowed_grievance_type !== 'All'
+            ? formData.allowed_grievance_type.trim()
+            : null
+
+        // Clean user description (strip any previous metadata tags)
+        let baseDescription = (formData.description || '').replace(/\[(?:Grievance Type|Allowed Type|Category):\s*[^\]]+\]\s*/gi, '').trim()
+
+        let insertPayload: Record<string, unknown> = {
+          name: cleanName,
+          description: baseDescription || null,
+          allowed_grievance_type: grievanceType,
+        }
+
+        // Attempt direct insertion with allowed_grievance_type column
+        let { data: newRoleData, error: roleError } = await supabase
           .from('roles')
-          .insert([
-            {
-              name: cleanName,
-              description: formData.description.trim() || null,
-            },
-          ])
+          .insert([insertPayload])
           .select()
           .single()
+
+        // Fallback if column does not exist yet
+        if (roleError && roleError.message && (roleError.message.includes('allowed_grievance_type') || roleError.code === '42703' || roleError.code === 'PGRST204')) {
+          const fallbackDesc = grievanceType
+            ? `[Grievance Type: ${grievanceType}] ${baseDescription}`.trim()
+            : baseDescription || null
+          const fallbackRes = await supabase
+            .from('roles')
+            .insert([{ name: cleanName, description: fallbackDesc }])
+            .select()
+            .single()
+
+          newRoleData = fallbackRes.data
+          roleError = fallbackRes.error
+        }
 
         if (roleError) throw roleError
         const createdRole: RoleRow = newRoleData
 
         // Insert role_permissions if selected
         if (formData.permissionIds.length > 0) {
-          const insertPayload = formData.permissionIds.map((pId) => ({
+          const insertPermsPayload = formData.permissionIds.map((pId) => ({
             role_id: createdRole.id,
             permission_id: pId,
           }))
 
           await supabase
             .from('role_permissions')
-            .insert(insertPayload)
+            .insert(insertPermsPayload)
         }
 
         // Grant default routes access to new role
@@ -307,7 +334,7 @@ export function useRolesPage() {
     [canCreateRole, roles, fetchData, refreshPermissions, showToast]
   )
 
-  // 2. Edit Existing Role (Name & Description)
+  // 2. Edit Existing Role (Name, Description, & Allowed Grievance Type)
   const handleUpdateRole = useCallback(
     async (roleId: number, formData: UpdateRoleFormData) => {
       if (!canEditRole) {
@@ -337,13 +364,39 @@ export function useRolesPage() {
         setActionLoading(true)
         setModalError(null)
 
-        const { error: updateError } = await supabase
+        const grievanceType =
+          formData.allowed_grievance_type && formData.allowed_grievance_type.trim() !== '' && formData.allowed_grievance_type !== 'All Types' && formData.allowed_grievance_type !== 'All'
+            ? formData.allowed_grievance_type.trim()
+            : null
+
+        let baseDescription = (formData.description || '').replace(/\[(?:Grievance Type|Allowed Type|Category):\s*[^\]]+\]\s*/gi, '').trim()
+
+        let updatePayload: Record<string, unknown> = {
+          name: cleanName,
+          description: baseDescription || null,
+          allowed_grievance_type: grievanceType,
+        }
+
+        let { error: updateError } = await supabase
           .from('roles')
-          .update({
-            name: cleanName,
-            description: formData.description.trim() || null,
-          })
+          .update(updatePayload)
           .eq('id', roleId)
+
+        // Fallback if column does not exist yet
+        if (updateError && updateError.message && (updateError.message.includes('allowed_grievance_type') || updateError.code === '42703' || updateError.code === 'PGRST204')) {
+          const fallbackDesc = grievanceType
+            ? `[Grievance Type: ${grievanceType}] ${baseDescription}`.trim()
+            : baseDescription || null
+          const fallbackRes = await supabase
+            .from('roles')
+            .update({
+              name: cleanName,
+              description: fallbackDesc,
+            })
+            .eq('id', roleId)
+
+          updateError = fallbackRes.error
+        }
 
         if (updateError) throw updateError
 

@@ -549,5 +549,227 @@ export const checkCanUpdateTaskStatus = (
   )
 }
 
+/**
+ * Normalizes grievance category strings for robust keyword & prefix matching.
+ */
+export const normalizeCategory = (cat?: string | null): string => {
+  if (!cat) return ''
+  return cat.toLowerCase().replace(/[^a-z0-9]/g, '').trim()
+}
+
+/**
+ * Returns canonical category identifier to prevent substring and keyword collisions.
+ */
+export const getCanonicalCategory = (raw?: string | null): string | null => {
+  if (!raw) return null
+  const str = raw.trim().toLowerCase()
+  if (
+    str === '' ||
+    str === 'all' ||
+    str === 'all types' ||
+    str === 'all categories' ||
+    str === 'unrestricted'
+  ) {
+    return null
+  }
+
+  // 1. Infrastructure (must be before generic terms)
+  if (
+    str.includes('infrastruct') ||
+    str.includes('smart board') ||
+    str.includes('smartboard') ||
+    str.includes('lim') ||
+    str.includes('benches') ||
+    str.includes('fans') ||
+    str.includes('lights') ||
+    str.includes('classroom')
+  ) {
+    return 'infrastructure'
+  }
+
+  // 2. Hostel & Accommodation
+  if (str.includes('hostel') || str.includes('accommodation') || str.includes('warden')) {
+    return 'hostel'
+  }
+
+  // 3. Transport & Bus
+  if (str.includes('transport') || str.includes('bus')) {
+    return 'transport'
+  }
+
+  // 4. Sanitation & Cleanliness
+  if (str.includes('clean') || str.includes('sanitat')) {
+    return 'sanitation'
+  }
+
+  // 5. Academic & Faculty
+  if (str.includes('acad') || str.includes('faculty') || str.includes('course') || str.includes('exam')) {
+    return 'academic'
+  }
+
+  // 6. Water & Electricity
+  if (str.includes('water') || str.includes('electric') || str.includes('power')) {
+    return 'water_electricity'
+  }
+
+  // 7. Canteen & Mess
+  if (str.includes('canteen') || str.includes('mess') || str.includes('food')) {
+    return 'canteen_mess'
+  }
+
+  return normalizeCategory(str)
+}
+
+/**
+ * Checks if a grievance type matches a role's allowed grievance type.
+ * Returns true if allowedType is unrestricted (null, empty, 'all', 'all types')
+ * or if there is an exact or canonical category match between the two.
+ */
+export const isMatchingGrievanceType = (
+  allowedType?: string | null,
+  grievanceType?: string | null
+): boolean => {
+  if (!allowedType) return true
+  const normAllowed = allowedType.trim().toLowerCase()
+  if (
+    normAllowed === '' ||
+    normAllowed === 'all' ||
+    normAllowed === 'all types' ||
+    normAllowed === 'all categories' ||
+    normAllowed === 'unrestricted'
+  ) {
+    return true
+  }
+
+  if (!grievanceType) return false
+  const normTarget = grievanceType.trim().toLowerCase()
+
+  // 1. Direct equality
+  if (normAllowed === normTarget) return true
+
+  // 2. Normalized alphanumeric equality
+  const cleanAllowed = normalizeCategory(normAllowed)
+  const cleanTarget = normalizeCategory(normTarget)
+  if (cleanAllowed && cleanTarget && cleanAllowed === cleanTarget) return true
+
+  // 3. Canonical category resolution (eliminates substring false positives like 'ac' in 'academic')
+  const canonAllowed = getCanonicalCategory(normAllowed)
+  const canonTarget = getCanonicalCategory(normTarget)
+
+  if (canonAllowed && canonTarget && canonAllowed === canonTarget) {
+    return true
+  }
+
+  return false
+}
+
+/**
+ * Infers grievance category from role name (e.g. 'hostel_warden' -> 'Hostel & Accommodation', 'lim' -> 'Infrastructure').
+ */
+export const inferGrievanceTypeFromRoleName = (roleName?: string | null): string | null => {
+  if (!roleName) return null
+  const r = roleName.trim().toLowerCase()
+
+  // Built-in system roles that are not department-specific by name
+  if (r === 'super_admin' || r === 'superadmin' || r === 'admin' || r === 'user' || r === 'citizen') {
+    return null
+  }
+
+  if (r.includes('hostel') || r.includes('accommodation') || r.includes('warden')) {
+    return 'Hostel'
+  }
+  if (r.includes('transport') || r.includes('bus')) {
+    return 'Transport'
+  }
+  if (r.includes('sanitat') || r.includes('clean')) {
+    return 'Cleanliness/Sanitization'
+  }
+  if (r.includes('acad') || r.includes('faculty')) {
+    return 'Academic'
+  }
+  if (r.includes('lim') || r.includes('infrastruct') || r.includes('classroom')) {
+    return "Infrastructure(lights, fans, ac's, Smart boards, benches)"
+  }
+  if (r.includes('canteen') || r.includes('mess')) {
+    return 'Canteen & Mess'
+  }
+  if (r.includes('water') || r.includes('electric')) {
+    return 'Water & Electricity'
+  }
+
+  return null
+}
+
+/**
+ * Parses allowed grievance type from a role row, with fallback to metadata in description and role name inference.
+ */
+export const parseRoleAllowedGrievanceType = (
+  roleRow?: { name?: string | null; allowed_grievance_type?: string | null; description?: string | null } | null
+): string | null => {
+  if (!roleRow) return null
+  if (roleRow.allowed_grievance_type && roleRow.allowed_grievance_type.trim()) {
+    const val = roleRow.allowed_grievance_type.trim()
+    if (val.toLowerCase() === 'all' || val.toLowerCase() === 'all types') {
+      return null
+    }
+    return val
+  }
+
+  // Fallback 1: Check if description contains "[Grievance Type: ...]" tag
+  if (roleRow.description) {
+    const match = roleRow.description.match(/\[(?:Grievance Type|Allowed Type|Category):\s*([^\]]+)\]/i)
+    if (match && match[1]) {
+      const parsed = match[1].trim()
+      if (parsed.toLowerCase() !== 'all' && parsed.toLowerCase() !== 'all types') {
+        return parsed
+      }
+    }
+  }
+
+  // Fallback 2: Infer from role name
+  if (roleRow.name) {
+    const inferred = inferGrievanceTypeFromRoleName(roleRow.name)
+    if (inferred) return inferred
+  }
+
+  return null
+}
+
+/**
+ * Checks if a user with a given role and allowed type can access (view/filter) a specific grievance.
+ * If allowedGrievanceType is set, it strictly checks that the grievance belongs to that category.
+ */
+export const canRoleAccessGrievance = (
+  role?: string | null,
+  allowedGrievanceType?: string | null,
+  grievanceType?: string | null
+): boolean => {
+  if (allowedGrievanceType) {
+    return isMatchingGrievanceType(allowedGrievanceType, grievanceType)
+  }
+  // If no allowedGrievanceType restriction is set:
+  if (isSuperAdmin(role) || isAdminOrSuperAdmin(role)) return true
+  return true
+}
+
+/**
+ * Checks if a user can update the status of a specific grievance.
+ * If allowedGrievanceType is set, it strictly checks that the grievance belongs to that category.
+ */
+export const canRoleUpdateGrievanceStatus = (
+  role?: string | null,
+  allowedGrievanceType?: string | null,
+  canEditStatusPermission: boolean = true,
+  grievanceType?: string | null
+): boolean => {
+  if (!canEditStatusPermission) return false
+  if (allowedGrievanceType) {
+    return isMatchingGrievanceType(allowedGrievanceType, grievanceType)
+  }
+  // If no allowedGrievanceType restriction is set:
+  if (isSuperAdmin(role) || isAdminOrSuperAdmin(role)) return true
+  return true
+}
+
 
 

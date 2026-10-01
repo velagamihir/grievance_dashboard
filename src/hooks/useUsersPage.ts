@@ -112,14 +112,18 @@ export function useUsersPage() {
   }, [permissionsLoading, canViewUsers, fetchData])
 
   // Map roles by name
-  const roleDescMap = useMemo(() => {
-    const map = new Map<string, string | null>()
+  // Map roles by name
+  const roleMetadataMap = useMemo(() => {
+    const descMap = new Map<string, string | null>()
+    const typeMap = new Map<string, string | null>()
     roles.forEach((r) => {
       if (r.name) {
-        map.set(r.name.toLowerCase().trim(), r.description)
+        const key = r.name.toLowerCase().trim()
+        descMap.set(key, r.description)
+        typeMap.set(key, r.allowed_grievance_type || null)
       }
     })
-    return map
+    return { descMap, typeMap }
   }, [roles])
 
   // Processed Users List directly from Supabase DB profiles
@@ -150,7 +154,8 @@ export function useUsersPage() {
         displayName = currentAuthUser.displayName
       }
 
-      const roleDescription = roleDescMap.get(cleanRole) || null
+      const roleDescription = roleMetadataMap.descMap.get(cleanRole) || null
+      const roleAllowedGrievanceType = roleMetadataMap.typeMap.get(cleanRole) || null
 
       return {
         firebase_uid: uid,
@@ -158,11 +163,12 @@ export function useUsersPage() {
         displayName,
         role: rawRole,
         roleDescription,
+        roleAllowedGrievanceType,
         createdAt: profile?.created_at,
         isCurrentUser: isCurrent,
       }
     })
-  }, [profiles, currentAuthUser, roleDescMap])
+  }, [profiles, currentAuthUser, roleMetadataMap])
 
   // Filtered Users based on Search & Role Filter
   const filteredUsers = useMemo(() => {

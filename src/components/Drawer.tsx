@@ -276,47 +276,26 @@ export const Drawer: React.FC<DrawerProps> = ({
           }
         }
 
-        // Include Users Management route candidate if user is admin / super_admin or has users permission
-        const normalizedRole = userRole?.toLowerCase().trim() || ''
-        const isAdmin = normalizedRole === 'super_admin' || normalizedRole === 'admin'
-        if ((isAdmin || canViewUsers) && !resolvedRoutes.some((r) => r.path === '/users')) {
-          resolvedRoutes.push({
-            name: 'Users Management',
-            path: '/users',
-            icon: 'users',
-            sort_order: 98,
-          })
-        }
+        // Standard system routes to evaluate against permissions
+        const standardRoutes: RouteData[] = [
+          { name: 'Dashboard', path: '/', icon: 'layout-dashboard', sort_order: 1 },
+          { name: 'Grievance Management', path: '/grievances', icon: 'layers', sort_order: 2 },
+          { name: 'Block Coordinators', path: '/block_coordinators', icon: 'building', sort_order: 3 },
+          { name: 'Work Assignments', path: '/tasks', icon: 'clipboard-list', sort_order: 4 },
+          { name: 'Worklogs', path: '/worklogs', icon: 'file-text', sort_order: 5 },
+          { name: 'Users Management', path: '/users', icon: 'users', sort_order: 98 },
+          { name: 'Roles & Permissions', path: '/roles', icon: 'shield', sort_order: 99 },
+        ]
 
-        // Include Roles & Permissions route candidate if user is admin / super_admin
-        if (isAdmin && !resolvedRoutes.some((r) => r.path === '/roles')) {
-          resolvedRoutes.push({
-            name: 'Roles & Permissions',
-            path: '/roles',
-            icon: 'shield',
-            sort_order: 99,
-          })
-        }
+        // Merge standard candidates not already in resolvedRoutes
+        standardRoutes.forEach((sr) => {
+          if (!resolvedRoutes.some((r) => r.path.toLowerCase() === sr.path.toLowerCase())) {
+            resolvedRoutes.push(sr)
+          }
+        })
 
-        // Include Work Assignments route candidate if permitted
-        if ((isAdmin || canViewTasks) && !resolvedRoutes.some((r) => r.path === '/tasks')) {
-          resolvedRoutes.push({
-            name: 'Work Assignments',
-            path: '/tasks',
-            icon: 'clipboard-list',
-            sort_order: 4,
-          })
-        }
-
-        // Include Worklogs route candidate if permitted
-        if ((isAdmin || canViewTasks) && !resolvedRoutes.some((r) => r.path === '/worklogs')) {
-          resolvedRoutes.push({
-            name: 'Worklogs',
-            path: '/worklogs',
-            icon: 'file-text',
-            sort_order: 5,
-          })
-        }
+        // Sort by sort_order
+        resolvedRoutes.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
 
         if (isMounted) {
           setRawRoutes(resolvedRoutes)
@@ -339,7 +318,7 @@ export const Drawer: React.FC<DrawerProps> = ({
     return () => {
       isMounted = false
     }
-  }, [user, permRole, permissionsLoading, canViewUsers])
+  }, [user, permRole, permDisplayName, permissionsLoading])
 
   const handleItemClick = (path: string) => {
     if (onNavigate) {

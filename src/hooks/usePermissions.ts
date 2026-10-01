@@ -33,8 +33,12 @@ import {
   checkCanTriggerWorkflows,
   isAdminOrSuperAdmin,
   isSuperAdmin,
+  parseRoleAllowedGrievanceType,
+  inferGrievanceTypeFromRoleName,
+  canRoleAccessGrievance,
+  canRoleUpdateGrievanceStatus,
 } from '../utils'
-import type { PermissionRow, RoleRow } from '../types'
+import type { PermissionRow, RoleRow, FormResponseRow } from '../types'
 
 interface RolePermissionJoined {
   permission_id: number
@@ -44,6 +48,7 @@ interface RolePermissionJoined {
 export interface UserPermissionsState {
   role: string | null
   displayName: string | null
+  allowedGrievanceType: string | null
   permissions: PermissionRow[]
   allPermissions: PermissionRow[]
   loading: boolean
@@ -51,6 +56,8 @@ export interface UserPermissionsState {
   isAdminOrSuperAdmin: boolean
   hasPermission: (resource: string, action: string) => boolean
   hasPermissionName: (name: string) => boolean
+  canAccessGrievanceType: (grievanceType?: string | null) => boolean
+  canUpdateGrievanceStatus: (grievanceOrType?: FormResponseRow | string | null) => boolean
   canCreateGrievance: boolean
   canEditGrievance: boolean
   canEditStatus: boolean
@@ -90,6 +97,7 @@ export function usePermissions(): UserPermissionsState {
   const { user } = useAuth()
   const [role, setRole] = useState<string | null>(null)
   const [displayName, setDisplayName] = useState<string | null>(null)
+  const [allowedGrievanceType, setAllowedGrievanceType] = useState<string | null>(null)
   const [permissions, setPermissions] = useState<PermissionRow[]>([])
   const [allPermissions, setAllPermissions] = useState<PermissionRow[]>([])
   const [loading, setLoading] = useState<boolean>(true)
@@ -98,6 +106,7 @@ export function usePermissions(): UserPermissionsState {
     if (!user) {
       setRole(null)
       setDisplayName(null)
+      setAllowedGrievanceType(null)
       setPermissions([])
       setAllPermissions([])
       setLoading(false)
@@ -145,28 +154,39 @@ export function usePermissions(): UserPermissionsState {
       setDisplayName(userDisplayName || user.displayName || null)
 
       if (!userRole) {
+        setAllowedGrievanceType(null)
         setPermissions([])
         return
       }
 
       const cleanRole = userRole.trim().toLowerCase()
 
-      // If user is super_admin, grant ALL permissions
-      if (isSuperAdmin(cleanRole)) {
-        setPermissions(availablePerms)
-        return
-      }
-
-      // 3. Find matching role from `roles` table
+      // 3. Find matching role from `roles` table (including allowed_grievance_type and description)
       const { data: allRoles } = await supabase
         .from('roles')
-        .select('id, name')
+        .select('*')
 
       const matchedRole = (allRoles as RoleRow[] | null || []).find(
         (r) =>
           r.name?.toLowerCase().trim() === cleanRole ||
           String(r.id) === cleanRole
       )
+
+      // Determine role's assigned grievance type
+      let parsedGrievanceType: string | null = null
+      if (matchedRole) {
+        parsedGrievanceType = parseRoleAllowedGrievanceType(matchedRole)
+      } else {
+        parsedGrievanceType = inferGrievanceTypeFromRoleName(cleanRole)
+      }
+
+      setAllowedGrievanceType(parsedGrievanceType)
+
+      // If user is super_admin, grant ALL permissions
+      if (isSuperAdmin(cleanRole)) {
+        setPermissions(availablePerms)
+        return
+      }
 
       const roleId = matchedRole ? matchedRole.id : (!isNaN(Number(cleanRole)) ? Number(cleanRole) : null)
 
@@ -238,9 +258,9 @@ export function usePermissions(): UserPermissionsState {
   const canEditStatus = isSuper || checkCanEditStatus(permissions)
   const canDeleteGrievance = isSuper || checkCanDeleteGrievance(permissions)
   const canViewAllGrievances = isSuper || checkCanViewAllGrievances(permissions)
-  const canTriggerWorkflow1 = isSuper || checkCanTriggerWorkflow1(permissions)
-  const canTriggerWorkflow2 = isSuper || checkCanTriggerWorkflow2(permissions)
-  const canTriggerWorkflows = isSuper || checkCanTriggerWorkflows(permissions)
+  const canTriggerWorkflow1 = isSuper || (!allowedGrievanceType && checkCanTriggerWorkflow1(permissions))
+  const canTriggerWorkflow2 = isSuper || (!allowedGrievanceType && checkCanTriggerWorkflow2(permissions))
+  const canTriggerWorkflows = isSuper || (!allowedGrievanceType && checkCanTriggerWorkflows(permissions))
   const canManageCoordinators = isSuper || checkCanManageCoordinators(permissions)
   const canViewCoordinators = isSuper || checkCanViewCoordinators(permissions)
   const canCreateCoordinator = isSuper || checkCanCreateCoordinator(permissions)
@@ -262,16 +282,35 @@ export function usePermissions(): UserPermissionsState {
   const canEditUser = isSuper || checkCanEditUser(permissions)
   const canDeleteUser = isSuper || checkCanDeleteUser(permissions)
 
-  const canViewTasks = isSuper || isSuperOrAdmin || checkCanViewTasks(permissions) || true
+  const canViewTasks = isSuper || isSuperOrAdmin || checkCanViewTasks(permissions)
   const canCreateTask = isSuper || isSuperOrAdmin || checkCanCreateTask(permissions)
   const canAddTask = canCreateTask
   const canEditTask = isSuper || isSuperOrAdmin || checkCanEditTask(permissions)
   const canDeleteTask = isSuper || isSuperOrAdmin || checkCanDeleteTask(permissions)
-  const canUpdateTaskStatus = isSuper || isSuperOrAdmin || checkCanUpdateTaskStatus(permissions) || true
+  const canUpdateTaskStatus = isSuper || isSuperOrAdmin || checkCanUpdateTaskStatus(permissions)
+
+  const canAccessGrievanceType = useCallback(
+    (grievanceType?: string | null): boolean => {
+      return canRoleAccessGrievance(role, allowedGrievanceType, grievanceType)
+    },
+    [role, allowedGrievanceType]
+  )
+
+  const canUpdateGrievanceStatus = useCallback(
+    (grievanceOrType?: FormResponseRow | string | null): boolean => {
+      const typeStr =
+        typeof grievanceOrType === 'object' && grievanceOrType !== null
+          ? grievanceOrType.type_of_grievance
+          : grievanceOrType
+      return canRoleUpdateGrievanceStatus(role, allowedGrievanceType, canEditStatus, typeStr)
+    },
+    [role, allowedGrievanceType, canEditStatus]
+  )
 
   return {
     role,
     displayName,
+    allowedGrievanceType,
     permissions,
     allPermissions,
     loading,
@@ -279,6 +318,8 @@ export function usePermissions(): UserPermissionsState {
     isAdminOrSuperAdmin: isSuperOrAdmin,
     hasPermission,
     hasPermissionName,
+    canAccessGrievanceType,
+    canUpdateGrievanceStatus,
     canCreateGrievance,
     canEditGrievance,
     canEditStatus,
