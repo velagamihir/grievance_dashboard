@@ -36,6 +36,7 @@ export function useTasksPage() {
   const [tasks, setTasks] = useState<TaskRow[]>([])
   const [assignments, setAssignments] = useState<TaskAssignmentRow[]>([])
   const [profiles, setProfiles] = useState<ProfileRow[]>([])
+  const [roles, setRoles] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [toast, setToast] = useState<TasksToast | null>(null)
@@ -69,14 +70,15 @@ export function useTasksPage() {
     setToast({ message, type })
   }, [])
 
-  // Fetch all tasks, assignments, and member profiles from Supabase
+  // Fetch all tasks, assignments, member profiles, and roles from Supabase
   const fetchData = useCallback(async () => {
     try {
       setRefreshing(true)
-      const [tasksRes, assignmentsRes, profilesRes] = await Promise.all([
+      const [tasksRes, assignmentsRes, profilesRes, rolesRes] = await Promise.all([
         supabase.from('tasks').select('*').order('created_at', { ascending: false }),
         supabase.from('task_assignments').select('*'),
         supabase.from('profiles').select('*').order('firebase_uid', { ascending: true }),
+        supabase.from('roles').select('*').order('id', { ascending: true }),
       ])
 
       if (tasksRes.error) {
@@ -95,6 +97,10 @@ export function useTasksPage() {
 
       if (!profilesRes.error && profilesRes.data) {
         setProfiles(profilesRes.data)
+      }
+
+      if (!rolesRes.error && rolesRes.data) {
+        setRoles(rolesRes.data)
       }
     } catch (err: unknown) {
       console.warn('Error querying tasks data from Supabase:', err)
@@ -357,6 +363,10 @@ export function useTasksPage() {
         let targetUids: string[] = []
         if (formData.assigned_to_all) {
           targetUids = profiles.map((p) => p.firebase_uid)
+        } else if (formData.assigned_role && formData.assigned_role !== 'none') {
+          targetUids = profiles
+            .filter((p) => (p.role || '').toLowerCase().trim() === formData.assigned_role?.toLowerCase().trim())
+            .map((p) => p.firebase_uid)
         } else {
           targetUids = formData.assigned_uids
         }
@@ -428,6 +438,10 @@ export function useTasksPage() {
         let targetUids: string[] = []
         if (formData.assigned_to_all) {
           targetUids = profiles.map((p) => p.firebase_uid)
+        } else if (formData.assigned_role && formData.assigned_role !== 'none') {
+          targetUids = profiles
+            .filter((p) => (p.role || '').toLowerCase().trim() === formData.assigned_role?.toLowerCase().trim())
+            .map((p) => p.firebase_uid)
         } else {
           targetUids = formData.assigned_uids
         }
@@ -736,6 +750,7 @@ export function useTasksPage() {
     tasks: tasksWithAssignments,
     filteredTasks,
     profiles,
+    roles,
     stats,
     loading,
     refreshing,

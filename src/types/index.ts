@@ -629,6 +629,7 @@ export interface CreateTaskFormData {
   priority: 'Low' | 'Medium' | 'High' | 'Urgent'
   due_date?: string | null
   assigned_to_all: boolean
+  assigned_role?: string | null
   assigned_uids: string[]
 }
 
@@ -640,6 +641,7 @@ export interface UpdateTaskFormData {
   status: 'Pending' | 'In Progress' | 'Completed' | 'Cancelled'
   due_date?: string | null
   assigned_to_all: boolean
+  assigned_role?: string | null
   assigned_uids: string[]
 }
 

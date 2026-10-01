@@ -63,6 +63,7 @@ export const TasksPage = ({
     tasks,
     filteredTasks,
     profiles,
+    roles,
     stats,
     loading,
     refreshing,
@@ -109,6 +110,7 @@ export const TasksPage = ({
     priority: 'Medium',
     due_date: '',
     assigned_to_all: true,
+    assigned_role: null,
     assigned_uids: [],
   })
 
@@ -121,6 +123,7 @@ export const TasksPage = ({
     status: 'Pending',
     due_date: '',
     assigned_to_all: false,
+    assigned_role: null,
     assigned_uids: [],
   })
 
@@ -132,6 +135,71 @@ export const TasksPage = ({
   })
 
   const [memberSearchQuery, setMemberSearchQuery] = useState('')
+
+  // Member counts per role for quick badges
+  const roleCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    profiles.forEach((p) => {
+      const r = (p.role || 'user').toLowerCase().trim()
+      counts.set(r, (counts.get(r) || 0) + 1)
+    })
+    return counts
+  }, [profiles])
+
+  // Helper to assign task to all members of a chosen role
+  const handleSelectRoleScope = (selectedRole: string, isEdit: boolean) => {
+    if (isEdit) {
+      if (selectedRole === 'all') {
+        setEditForm((prev) => ({
+          ...prev,
+          assigned_to_all: true,
+          assigned_role: null,
+          assigned_uids: [],
+        }))
+      } else if (selectedRole === 'custom') {
+        setEditForm((prev) => ({
+          ...prev,
+          assigned_to_all: false,
+          assigned_role: null,
+        }))
+      } else {
+        const uids = profiles
+          .filter((p) => (p.role || '').toLowerCase().trim() === selectedRole.toLowerCase().trim())
+          .map((p) => p.firebase_uid)
+        setEditForm((prev) => ({
+          ...prev,
+          assigned_to_all: false,
+          assigned_role: selectedRole,
+          assigned_uids: uids,
+        }))
+      }
+    } else {
+      if (selectedRole === 'all') {
+        setAddForm((prev) => ({
+          ...prev,
+          assigned_to_all: true,
+          assigned_role: null,
+          assigned_uids: [],
+        }))
+      } else if (selectedRole === 'custom') {
+        setAddForm((prev) => ({
+          ...prev,
+          assigned_to_all: false,
+          assigned_role: null,
+        }))
+      } else {
+        const uids = profiles
+          .filter((p) => (p.role || '').toLowerCase().trim() === selectedRole.toLowerCase().trim())
+          .map((p) => p.firebase_uid)
+        setAddForm((prev) => ({
+          ...prev,
+          assigned_to_all: false,
+          assigned_role: selectedRole,
+          assigned_uids: uids,
+        }))
+      }
+    }
+  }
 
   // Filtered members for member assignment selector
   const filteredProfiles = useMemo(() => {
@@ -153,6 +221,7 @@ export const TasksPage = ({
       priority: 'Medium',
       due_date: '',
       assigned_to_all: true,
+      assigned_role: null,
       assigned_uids: [],
     })
     setMemberSearchQuery('')
@@ -169,6 +238,7 @@ export const TasksPage = ({
       status: task.status,
       due_date: task.due_date ? task.due_date.split('T')[0] : '',
       assigned_to_all: task.assigned_to_all,
+      assigned_role: null,
       assigned_uids: task.assignments.map((a) => a.user_uid),
     })
     setMemberSearchQuery('')
@@ -779,6 +849,7 @@ export const TasksPage = ({
                     setAddForm({
                       ...addForm,
                       assigned_to_all: e.target.checked,
+                      assigned_role: null,
                       assigned_uids: e.target.checked ? [] : addForm.assigned_uids,
                     })
                   }
@@ -786,6 +857,62 @@ export const TasksPage = ({
                 />
                 <span>Assign to All Members ({profiles.length})</span>
               </label>
+            </div>
+
+            {/* Quick Role Selection Buttons */}
+            <div className="bg-offwhite/70 dark:bg-[#151726]/60 p-3 rounded-xl border border-gray/15 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-darkblue dark:text-offwhite uppercase tracking-wider">
+                  Quick Assign by Role:
+                </span>
+                {addForm.assigned_role && (
+                  <span className="text-[11px] text-orange font-bold">
+                    Target Role: <strong className="capitalize">{addForm.assigned_role}</strong>
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => handleSelectRoleScope('all', false)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
+                    addForm.assigned_to_all
+                      ? 'bg-lightblue text-white border-lightblue shadow-xs'
+                      : 'bg-white dark:bg-[#1a1d2e] border-gray/20 text-gray hover:bg-gray/5'
+                  }`}
+                >
+                  All Members ({profiles.length})
+                </button>
+                {(roles || []).map((r: any) => {
+                  const rName = r.name || ''
+                  const count = roleCounts.get(rName.toLowerCase().trim()) || 0
+                  const isSelected =
+                    !addForm.assigned_to_all &&
+                    addForm.assigned_role?.toLowerCase().trim() === rName.toLowerCase().trim()
+
+                  return (
+                    <button
+                      key={r.id || rName}
+                      type="button"
+                      onClick={() => handleSelectRoleScope(rName, false)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all capitalize flex items-center gap-1.5 ${
+                        isSelected
+                          ? 'bg-orange text-white border-orange shadow-xs'
+                          : 'bg-white dark:bg-[#1a1d2e] border-gray/20 text-gray hover:bg-gray/5'
+                      }`}
+                    >
+                      <span>{rName}</span>
+                      <span
+                        className={`text-[10px] px-1 py-0.2 rounded-full ${
+                          isSelected ? 'bg-white/20 text-white' : 'bg-gray/10 text-gray'
+                        }`}
+                      >
+                        {count}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
 
             {/* Custom Member Selector if not assigned to all */}
@@ -994,6 +1121,7 @@ export const TasksPage = ({
                     setEditForm({
                       ...editForm,
                       assigned_to_all: e.target.checked,
+                      assigned_role: null,
                       assigned_uids: e.target.checked ? [] : editForm.assigned_uids,
                     })
                   }
@@ -1001,6 +1129,62 @@ export const TasksPage = ({
                 />
                 <span>Assign to All Members ({profiles.length})</span>
               </label>
+            </div>
+
+            {/* Quick Role Selection Buttons */}
+            <div className="bg-offwhite/70 dark:bg-[#151726]/60 p-3 rounded-xl border border-gray/15 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-darkblue dark:text-offwhite uppercase tracking-wider">
+                  Quick Assign by Role:
+                </span>
+                {editForm.assigned_role && (
+                  <span className="text-[11px] text-orange font-bold">
+                    Target Role: <strong className="capitalize">{editForm.assigned_role}</strong>
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => handleSelectRoleScope('all', true)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
+                    editForm.assigned_to_all
+                      ? 'bg-lightblue text-white border-lightblue shadow-xs'
+                      : 'bg-white dark:bg-[#1a1d2e] border-gray/20 text-gray hover:bg-gray/5'
+                  }`}
+                >
+                  All Members ({profiles.length})
+                </button>
+                {(roles || []).map((r: any) => {
+                  const rName = r.name || ''
+                  const count = roleCounts.get(rName.toLowerCase().trim()) || 0
+                  const isSelected =
+                    !editForm.assigned_to_all &&
+                    editForm.assigned_role?.toLowerCase().trim() === rName.toLowerCase().trim()
+
+                  return (
+                    <button
+                      key={r.id || rName}
+                      type="button"
+                      onClick={() => handleSelectRoleScope(rName, true)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all capitalize flex items-center gap-1.5 ${
+                        isSelected
+                          ? 'bg-orange text-white border-orange shadow-xs'
+                          : 'bg-white dark:bg-[#1a1d2e] border-gray/20 text-gray hover:bg-gray/5'
+                      }`}
+                    >
+                      <span>{rName}</span>
+                      <span
+                        className={`text-[10px] px-1 py-0.2 rounded-full ${
+                          isSelected ? 'bg-white/20 text-white' : 'bg-gray/10 text-gray'
+                        }`}
+                      >
+                        {count}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
 
             {!editForm.assigned_to_all && (
