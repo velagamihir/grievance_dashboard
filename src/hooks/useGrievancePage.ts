@@ -141,7 +141,12 @@ export function useGrievancePage() {
   // 1. Inline Status Dropdown Change
   const handleStatusChange = useCallback(async (grievanceId: number, newStatus: string) => {
     if (!canEditStatus) {
-      showToast('Permission Denied: You do not have permission to update grievance status.', 'error')
+      showToast(
+        allowedGrievanceType
+          ? `Permission Denied: Users assigned to "${allowedGrievanceType}" are not permitted to update status.`
+          : 'Permission Denied: You do not have permission to update grievance status.',
+        'error'
+      )
       return
     }
 
@@ -151,7 +156,9 @@ export function useGrievancePage() {
     // Role Scoped Grievance Type Validation
     if (!canUpdateGrievanceStatus(currentItem)) {
       showToast(
-        `Permission Denied: Your assigned role (${role || 'User'}) is restricted to "${allowedGrievanceType}" grievances.`,
+        allowedGrievanceType
+          ? `Permission Denied: Users assigned to "${allowedGrievanceType}" are not permitted to update status.`
+          : 'Permission Denied: You do not have permission to update grievance status.',
         'error'
       )
       return
@@ -184,7 +191,7 @@ export function useGrievancePage() {
       setGrievances(previousGrievances)
       showToast(`Failed to update status in DB: ${err?.message || 'Database error'}`, 'error')
     }
-  }, [canEditStatus, grievances, canUpdateGrievanceStatus, role, allowedGrievanceType, showToast])
+  }, [canEditStatus, grievances, canUpdateGrievanceStatus, allowedGrievanceType, showToast])
 
   // 2. Open Add Grievance Modal
   const handleOpenAddModal = useCallback(() => {
@@ -274,7 +281,7 @@ export function useGrievancePage() {
         bus_route: formData.bus_route.trim(),
         bus_number: formData.bus_number.trim(),
         suggestions: formData.suggestions.trim(),
-        status: formData.status,
+        status: canEditStatus ? formData.status : selectedGrievance.status,
       }
 
       const { error } = await supabase
@@ -299,7 +306,7 @@ export function useGrievancePage() {
     } finally {
       setSubmitting(false)
     }
-  }, [selectedGrievance, canEditGrievance, formData, showToast])
+  }, [selectedGrievance, canEditGrievance, canEditStatus, formData, showToast])
 
   // 5. Open Delete Confirmation Modal
   const handleOpenDeleteModal = useCallback((item: FormResponseRow) => {

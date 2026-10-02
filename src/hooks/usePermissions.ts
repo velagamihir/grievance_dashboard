@@ -255,7 +255,7 @@ export function usePermissions(): UserPermissionsState {
 
   const canCreateGrievance = isSuper || checkCanCreateGrievance(permissions)
   const canEditGrievance = isSuper || checkCanEditGrievance(permissions)
-  const canEditStatus = isSuper || checkCanEditStatus(permissions)
+  const canEditStatus = isSuper || (!allowedGrievanceType && checkCanEditStatus(permissions))
   const canDeleteGrievance = isSuper || checkCanDeleteGrievance(permissions)
   const canViewAllGrievances = isSuper || checkCanViewAllGrievances(permissions)
   const canTriggerWorkflow1 = isSuper || (!allowedGrievanceType && checkCanTriggerWorkflow1(permissions))

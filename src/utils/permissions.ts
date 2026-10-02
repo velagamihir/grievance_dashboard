@@ -754,21 +754,22 @@ export const canRoleAccessGrievance = (
 
 /**
  * Checks if a user can update the status of a specific grievance.
- * If allowedGrievanceType is set, it strictly checks that the grievance belongs to that category.
+ * If allowedGrievanceType is set (is not null), status update access is denied.
  */
 export const canRoleUpdateGrievanceStatus = (
   role?: string | null,
   allowedGrievanceType?: string | null,
   canEditStatusPermission: boolean = true,
-  grievanceType?: string | null
+  _grievanceType?: string | null
 ): boolean => {
-  if (!canEditStatusPermission) return false
-  if (allowedGrievanceType) {
-    return isMatchingGrievanceType(allowedGrievanceType, grievanceType)
+  if (isSuperAdmin(role)) return true
+  // Stop the access of updating the status for all those who have allowed_type_grievance is not null
+  if (allowedGrievanceType && allowedGrievanceType.trim() !== '') {
+    return false
   }
-  // If no allowedGrievanceType restriction is set:
-  if (isSuperAdmin(role) || isAdminOrSuperAdmin(role)) return true
-  return true
+  if (!canEditStatusPermission) return false
+  if (isAdminOrSuperAdmin(role)) return true
+  return canEditStatusPermission
 }
 
 

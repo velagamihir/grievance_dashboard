@@ -2,9 +2,9 @@
 -- Role Scoped Grievance Type Restriction Migration
 -- =========================================================
 -- This migration adds an `allowed_grievance_type` column to the `roles` table.
--- When set, users assigned to this role will only be allowed to view
--- and update the status of grievances matching this specific category.
--- Super Admin and Admin roles retain full access across all types.
+-- When set (NOT NULL), users assigned to this role will only be allowed to view
+-- grievances matching this specific category, and status update access is disabled.
+-- Super Admin retains full access across all types.
 
 -- 1. Add `allowed_grievance_type` column to public.roles if it does not exist
 ALTER TABLE public.roles 

@@ -176,9 +176,11 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
       return
     }
 
-    if (!canUpdateGrievanceStatus(item)) {
+    if (!canEditStatus || !canUpdateGrievanceStatus(item)) {
       setToast({
-        message: `Permission Denied: Your assigned role (${role || 'User'}) is restricted to "${allowedGrievanceType}" grievances.`,
+        message: allowedGrievanceType
+          ? `Permission Denied: Users assigned to "${allowedGrievanceType}" are not permitted to update status.`
+          : 'Permission Denied: You do not have permission to update grievance status.',
         type: 'error',
       })
       return
@@ -674,8 +676,8 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
                     <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2.5">
                       {/* Interactive Status Dropdown */}
                       {(() => {
-                        const isCategoryAllowed = canUpdateGrievanceStatus(item)
-                        const isStatusDisabled = !canEditStatus || item.status === 'Resolved' || !isCategoryAllowed
+                        const isAllowed = canEditStatus && canUpdateGrievanceStatus(item)
+                        const isStatusDisabled = !isAllowed || item.status === 'Resolved'
 
                         return (
                           <div className="relative flex items-center">
@@ -686,16 +688,16 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
                               title={
                                 item.status === 'Resolved'
                                   ? 'This grievance is marked as Resolved and cannot be changed back.'
-                                  : !canEditStatus
-                                    ? 'Permission Denied: Only authorized coordinators & admins can change status'
-                                    : !isCategoryAllowed
-                                      ? `Permission Denied: Your role is restricted to "${allowedGrievanceType}" grievances only`
-                                      : 'Change grievance status'
+                                  : !canEditStatus || !isAllowed
+                                    ? allowedGrievanceType
+                                      ? `Permission Denied: Users assigned to "${allowedGrievanceType}" are not permitted to update status`
+                                      : 'Permission Denied: Only authorized coordinators & admins can change status'
+                                    : 'Change grievance status'
                               }
                               className={`appearance-none text-xs font-semibold py-1.5 pl-3 pr-8 rounded-xl border transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-lightblue/30 ${
                                 item.status === 'Resolved'
                                   ? 'bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/30 cursor-not-allowed opacity-90'
-                                  : !canEditStatus || !isCategoryAllowed
+                                  : isStatusDisabled
                                     ? 'cursor-not-allowed opacity-60'
                                     : 'cursor-pointer'
                               } ${
