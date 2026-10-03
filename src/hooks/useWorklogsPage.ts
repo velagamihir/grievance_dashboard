@@ -17,7 +17,6 @@ import {
   Clock,
   CheckCircle2,
   Edit3,
-  Users,
 } from 'lucide-react'
 
 export function useWorklogsPage() {
@@ -69,17 +68,31 @@ export function useWorklogsPage() {
     setToast({ message, type })
   }, [])
 
-  // Fetch all worklogs, profiles, tasks, and completed task_assignments from Supabase
+  // Fetch personal worklogs, profiles, tasks, and user's completed task_assignments from Supabase
   const fetchData = useCallback(async () => {
+    if (!user?.uid) {
+      setRawWorklogs([])
+      setLoading(false)
+      return
+    }
+
     try {
       setRefreshing(true)
       setDbNotice(null)
 
       const [logsRes, profilesRes, tasksRes, completedAssignsRes] = await Promise.all([
-        supabase.from('worklogs').select('*').order('completed_at', { ascending: false }),
+        supabase
+          .from('worklogs')
+          .select('*')
+          .eq('user_uid', user.uid)
+          .order('completed_at', { ascending: false }),
         supabase.from('profiles').select('*').order('firebase_uid', { ascending: true }),
         supabase.from('tasks').select('*'),
-        supabase.from('task_assignments').select('*').eq('status', 'Completed'),
+        supabase
+          .from('task_assignments')
+          .select('*')
+          .eq('user_uid', user.uid)
+          .eq('status', 'Completed'),
       ])
 
       let existingLogs: WorklogRow[] = []
@@ -102,7 +115,7 @@ export function useWorklogsPage() {
         setTasks(freshTasks)
       }
 
-      // Auto-backfill any completed task assignments not yet in worklogs
+      // Auto-backfill any completed task assignments for this user not yet in worklogs
       const existingKeySet = new Set(
         existingLogs.map((w) => `${w.task_id || ''}-${w.user_uid}`)
       )
@@ -119,7 +132,7 @@ export function useWorklogsPage() {
           const t = taskMapLocal.get(a.task_id)
           return {
             task_id: a.task_id,
-            user_uid: a.user_uid,
+            user_uid: user.uid,
             title: t?.title || 'Completed Task Assignment',
             description: a.notes || t?.description || 'Task completed via Work Assignments',
             category: 'Task Completion',
@@ -157,7 +170,7 @@ export function useWorklogsPage() {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [])
+  }, [user])
 
   useEffect(() => {
     if (!permissionsLoading) {
@@ -199,29 +212,22 @@ export function useWorklogsPage() {
 
   // Filtered worklogs based on search, category, source, scope, and date
   const filteredWorklogs = useMemo(() => {
-    const currentUid = user?.uid || ''
-
     return worklogsWithDetails.filter((log) => {
-      // 1. Scope Filter ('all' vs 'my_logs')
-      if (scopeFilter === 'my_logs') {
-        if (log.user_uid !== currentUid) return false
-      }
-
-      // 2. Category Filter
+      // 1. Category Filter
       if (categoryFilter !== 'All') {
         if ((log.category || 'General').toLowerCase() !== categoryFilter.toLowerCase()) {
           return false
         }
       }
 
-      // 3. Source Filter ('Manual' vs 'Task Completion')
+      // 2. Source Filter ('Manual' vs 'Task Completion')
       if (sourceFilter !== 'All') {
         if ((log.log_source || 'Manual').toLowerCase() !== sourceFilter.toLowerCase()) {
           return false
         }
       }
 
-      // 4. Date Filter
+      // 3. Date Filter
       if (dateFilter) {
         const logDateStr = (log.completed_at || log.created_at).split('T')[0]
         if (logDateStr !== dateFilter) {
@@ -229,26 +235,24 @@ export function useWorklogsPage() {
         }
       }
 
-      // 5. Search Query Filter
+      // 4. Search Query Filter
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim()
         const titleMatch = log.title.toLowerCase().includes(q)
         const descMatch = (log.description || '').toLowerCase().includes(q)
         const catMatch = (log.category || '').toLowerCase().includes(q)
-        const nameMatch = (log.userProfile?.display_name || '').toLowerCase().includes(q)
-        const emailMatch = (log.userProfile?.email || '').toLowerCase().includes(q)
         const taskTitleMatch = (log.task?.title || '').toLowerCase().includes(q)
 
-        if (!titleMatch && !descMatch && !catMatch && !nameMatch && !emailMatch && !taskTitleMatch) {
+        if (!titleMatch && !descMatch && !catMatch && !taskTitleMatch) {
           return false
         }
       }
 
       return true
     })
-  }, [worklogsWithDetails, scopeFilter, categoryFilter, sourceFilter, dateFilter, searchQuery, user])
+  }, [worklogsWithDetails, categoryFilter, sourceFilter, dateFilter, searchQuery])
 
-  // KPI Statistics
+  // KPI Statistics for current user
   const stats: WorklogStatItem[] = useMemo(() => {
     const totalLogs = worklogsWithDetails.length
     const totalHours = worklogsWithDetails
@@ -256,13 +260,13 @@ export function useWorklogsPage() {
       .toFixed(1)
     const taskLogs = worklogsWithDetails.filter((w) => w.log_source === 'Task Completion').length
     const manualLogs = worklogsWithDetails.filter((w) => w.log_source === 'Manual').length
-    const uniqueMembers = new Set(worklogsWithDetails.map((w) => w.user_uid)).size
+    const avgHours = totalLogs > 0 ? (Number(totalHours) / totalLogs).toFixed(1) : '0'
 
     return [
       {
-        title: 'Total Worklogs',
+        title: 'My Worklogs',
         count: totalLogs,
-        change: 'Recorded activities',
+        change: 'Personal activity entries',
         icon: FileText,
         color: 'from-blue-600 to-indigo-600 text-white',
       },
@@ -283,15 +287,15 @@ export function useWorklogsPage() {
       {
         title: 'Manual Entries',
         count: manualLogs,
-        change: 'Directly logged by members',
+        change: 'Directly logged by you',
         icon: Edit3,
         color: 'from-purple-600 to-violet-700 text-white',
       },
       {
-        title: 'Active Contributors',
-        count: uniqueMembers,
-        change: 'Members with work records',
-        icon: Users,
+        title: 'Avg Effort / Log',
+        count: `${avgHours} hrs`,
+        change: 'Average time per activity',
+        icon: Clock,
         color: 'from-rose-500 to-red-600 text-white',
       },
     ]
@@ -359,13 +363,12 @@ export function useWorklogsPage() {
         setActionLoading(true)
         setModalError(null)
 
-        const targetUid = formData.user_uid || user.uid
         const completedDate = formData.completed_at
           ? new Date(formData.completed_at).toISOString()
           : new Date().toISOString()
 
         const worklogPayload = {
-          user_uid: targetUid,
+          user_uid: user.uid,
           task_id: null,
           title: formData.title.trim(),
           description: formData.description?.trim() || null,

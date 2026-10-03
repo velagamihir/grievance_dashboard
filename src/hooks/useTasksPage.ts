@@ -45,7 +45,7 @@ export function useTasksPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [priorityFilter, setPriorityFilter] = useState('All')
-  const [scopeFilter, setScopeFilter] = useState<'all' | 'assigned_to_me' | 'created_by_me'>('all')
+  const [scopeFilter, setScopeFilter] = useState<'all' | 'assigned_to_me'>('all')
 
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
@@ -163,7 +163,6 @@ export function useTasksPage() {
         }))
       }
 
-      const creator = profileMap.get(task.created_by) || null
       const myAssignment = finalAssignments.find((a) => a.user_uid === currentUid) || null
       const completedCount = finalAssignments.filter((a) => a.status === 'Completed').length
       const totalAssignedCount = finalAssignments.length
@@ -171,7 +170,7 @@ export function useTasksPage() {
       return {
         ...task,
         assignments: finalAssignments,
-        creatorProfile: creator,
+        creatorProfile: null,
         myAssignment,
         completedCount,
         totalAssignedCount,
@@ -198,30 +197,25 @@ export function useTasksPage() {
         }
       }
 
-      // 3. Scope Filter ('all' | 'assigned_to_me' | 'created_by_me')
+      // 3. Scope Filter ('all' | 'assigned_to_me')
       if (scopeFilter === 'assigned_to_me') {
         const isAssigned =
           task.assigned_to_all || task.assignments.some((a) => a.user_uid === currentUid)
         if (!isAssigned) return false
-      } else if (scopeFilter === 'created_by_me') {
-        if (task.created_by !== currentUid) return false
       }
 
-      // 4. Search Query Filter
+      // 4. Search Query Filter (Searches by title, description, or assigned members - creator is anonymous)
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim()
         const titleMatch = task.title.toLowerCase().includes(q)
         const descMatch = (task.description || '').toLowerCase().includes(q)
-        const creatorMatch =
-          (task.creatorProfile?.display_name || '').toLowerCase().includes(q) ||
-          (task.creatorProfile?.email || '').toLowerCase().includes(q)
         const assigneeMatch = task.assignments.some((a) => {
           const name = a.userProfile?.display_name || ''
           const email = a.userProfile?.email || ''
           return name.toLowerCase().includes(q) || email.toLowerCase().includes(q)
         })
 
-        if (!titleMatch && !descMatch && !creatorMatch && !assigneeMatch) {
+        if (!titleMatch && !descMatch && !assigneeMatch) {
           return false
         }
       }

@@ -429,17 +429,6 @@ export const TasksPage = ({
               >
                 Assigned to Me
               </button>
-              <button
-                type="button"
-                onClick={() => setScopeFilter('created_by_me')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  scopeFilter === 'created_by_me'
-                    ? 'bg-darkblue text-offwhite dark:bg-orange dark:text-darkblue shadow-xs'
-                    : 'text-gray hover:text-darkblue dark:hover:text-offwhite'
-                }`}
-              >
-                Created by Me
-              </button>
             </div>
 
             {/* Action Buttons */}
@@ -478,7 +467,7 @@ export const TasksPage = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search works by title, description, creator, or assigned member..."
+                placeholder="Search works by title, description, or assigned member..."
                 className="w-full pl-9 pr-8 py-2 text-xs sm:text-sm rounded-xl border border-gray/20 dark:border-gray/15 bg-offwhite/50 dark:bg-[#151726]/60 text-darkblue dark:text-offwhite placeholder:text-gray focus:outline-none focus:ring-2 focus:ring-lightblue/30"
               />
               {searchQuery && (
@@ -558,7 +547,6 @@ export const TasksPage = ({
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
             {filteredTasks.map((task) => {
-              const isCreator = user?.uid === task.created_by
               const isAssigned =
                 task.assigned_to_all || task.assignments.some((a) => a.user_uid === user?.uid)
               const priorityClass =
@@ -713,7 +701,7 @@ export const TasksPage = ({
                         </Button>
                       )}
 
-                      {(isCreator || canEditTask) && (
+                      {canEditTask && (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -725,7 +713,7 @@ export const TasksPage = ({
                         </Button>
                       )}
 
-                      {(isCreator || canDeleteTask) && (
+                      {canDeleteTask && (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -1310,15 +1298,6 @@ export const TasksPage = ({
               )}
 
               <div className="text-[11px] text-gray flex items-center gap-4 pt-1">
-                <span>
-                  Created by:{' '}
-                  <strong className="text-darkblue dark:text-offwhite">
-                    {activeTask.creatorProfile?.display_name ||
-                      activeTask.creatorProfile?.email ||
-                      'Administrator'}
-                  </strong>
-                </span>
-                <span>•</span>
                 <span>
                   Created:{' '}
                   {new Date(activeTask.created_at).toLocaleDateString()}

@@ -81,7 +81,6 @@ export const WorklogsPage = ({
     isAdminOrSuperAdmin,
     worklogs,
     filteredWorklogs,
-    profiles,
     stats,
     categories,
     loading,
@@ -94,8 +93,6 @@ export const WorklogsPage = ({
     setCategoryFilter,
     sourceFilter,
     setSourceFilter,
-    scopeFilter,
-    setScopeFilter,
     dateFilter,
     setDateFilter,
     isAddModalOpen,
@@ -226,13 +223,13 @@ export const WorklogsPage = ({
           <div className="relative z-10 max-w-2xl space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 text-xs font-semibold backdrop-blur-xs">
               <Sparkles className="w-3.5 h-3.5 text-orange" />
-              Operational Activity Archive
+              Personal Operational Activity Log
             </div>
             <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight">
-              Worklogs & Completed Works
+              My Worklogs & Completed Works
             </h2>
             <p className="text-xs sm:text-sm md:text-base text-offwhite/85">
-              Comprehensive log of all executed assignments and manual work entries submitted across the council.
+              Review and record your personal operational assignments, task execution history, and manual work activities.
             </p>
           </div>
 
@@ -298,32 +295,12 @@ export const WorklogsPage = ({
 
         {/* Controls & Filter Bar */}
         <div className="bg-white dark:bg-[#1a1d2e] rounded-2xl border border-gray/15 dark:border-gray/10 p-4 space-y-4 shadow-xs">
-          {/* Top Row: Scope Filter Tabs & Add Button */}
+          {/* Top Row: Activity Badge & Add Button */}
           <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-            {/* Scope Filter Tabs */}
-            <div className="inline-flex p-1 rounded-xl bg-offwhite/70 dark:bg-[#151726]/70 border border-gray/15 self-start">
-              <button
-                type="button"
-                onClick={() => setScopeFilter('all')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  scopeFilter === 'all'
-                    ? 'bg-darkblue text-offwhite dark:bg-orange dark:text-darkblue shadow-xs'
-                    : 'text-gray hover:text-darkblue dark:hover:text-offwhite'
-                }`}
-              >
-                All Worklogs ({worklogs.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setScopeFilter('my_logs')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  scopeFilter === 'my_logs'
-                    ? 'bg-darkblue text-offwhite dark:bg-orange dark:text-darkblue shadow-xs'
-                    : 'text-gray hover:text-darkblue dark:hover:text-offwhite'
-                }`}
-              >
-                My Logs
-              </button>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-darkblue dark:text-offwhite">
+                Personal Activity Feed ({worklogs.length} entries)
+              </span>
             </div>
 
             {/* Action Buttons */}
@@ -360,7 +337,7 @@ export const WorklogsPage = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search worklogs by title, description, member, category, or task..."
+                placeholder="Search your worklogs by title, description, category, or task..."
                 className="w-full pl-9 pr-8 py-2 text-xs sm:text-sm rounded-xl border border-gray/20 dark:border-gray/15 bg-offwhite/50 dark:bg-[#151726]/60 text-darkblue dark:text-offwhite placeholder:text-gray focus:outline-none focus:ring-2 focus:ring-lightblue/30"
               />
               {searchQuery && (
@@ -449,9 +426,9 @@ export const WorklogsPage = ({
               No Worklogs Found
             </h3>
             <p className="text-xs sm:text-sm text-gray max-w-md mx-auto">
-              {searchQuery || categoryFilter !== 'All' || sourceFilter !== 'All' || dateFilter || scopeFilter !== 'all'
+              {searchQuery || categoryFilter !== 'All' || sourceFilter !== 'All' || dateFilter
                 ? 'No worklogs match your current search and filter settings. Try adjusting your filters.'
-                : 'There are no recorded work activities yet. When members complete assigned works or add manual entries, they will appear here.'}
+                : 'There are no recorded work activities yet. When you complete assigned works or add manual entries, they will appear here.'}
             </p>
             <Button variant="primary" size="sm" onClick={onOpenAddModal} className="mt-2">
               Add First Worklog
@@ -707,27 +684,6 @@ export const WorklogsPage = ({
               />
             </div>
           </div>
-
-          {/* Member Attribution Selector (If admin logging for someone else) */}
-          {isAdminOrSuperAdmin && (
-            <div>
-              <label className="block text-xs font-bold text-darkblue dark:text-offwhite mb-1.5">
-                Log for Member (Defaults to You)
-              </label>
-              <select
-                value={addForm.user_uid}
-                onChange={(e) => setAddForm({ ...addForm, user_uid: e.target.value })}
-                className="w-full px-3 py-2 text-sm rounded-xl border border-gray/20 dark:border-gray/15 bg-offwhite/50 dark:bg-[#151726]/60 text-darkblue dark:text-offwhite focus:outline-none focus:ring-2 focus:ring-lightblue/30 cursor-pointer"
-              >
-                <option value="">Myself ({displayName || user?.email})</option>
-                {profiles.map((p) => (
-                  <option key={p.firebase_uid} value={p.firebase_uid}>
-                    {p.display_name || p.email} ({p.role})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
 
           <div className="pt-3 flex items-center justify-end gap-2 border-t border-gray/10">
             <Button

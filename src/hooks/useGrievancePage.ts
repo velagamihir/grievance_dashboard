@@ -7,6 +7,7 @@ import {
   initialGrievanceFormData,
   exportGrievancesToExcel,
   validateLocationRequirement,
+  triggerStatusAutomatedMail,
 } from '../utils'
 import type {
   FormResponseRow,
@@ -138,7 +139,7 @@ export function useGrievancePage() {
     }
   }, [permissionsLoading, canViewAllGrievances, fetchGrievances])
 
-  // 1. Inline Status Dropdown Change
+  // 1. Inline Status Dropdown Change with Automated Email Dispatch
   const handleStatusChange = useCallback(async (grievanceId: number, newStatus: string) => {
     if (!canEditStatus) {
       showToast(
@@ -186,7 +187,27 @@ export function useGrievancePage() {
         throw error
       }
 
-      showToast(`Grievance #${grievanceId} status updated to "${newStatus}"`, 'success')
+      // Automatically trigger workflow mail 1 (if in progress) or mail 2 (if resolved)
+      const mailResult = await triggerStatusAutomatedMail(newStatus, {
+        name: currentItem.name,
+        email: currentItem.email,
+      })
+
+      if (mailResult.triggered) {
+        if (mailResult.success) {
+          showToast(
+            `Grievance #${grievanceId} marked "${newStatus}" & ${mailResult.message}`,
+            'success'
+          )
+        } else {
+          showToast(
+            `Grievance #${grievanceId} updated to "${newStatus}". Note: ${mailResult.message}`,
+            'info'
+          )
+        }
+      } else {
+        showToast(`Grievance #${grievanceId} status updated to "${newStatus}"`, 'success')
+      }
     } catch (err: any) {
       setGrievances(previousGrievances)
       showToast(`Failed to update status in DB: ${err?.message || 'Database error'}`, 'error')
@@ -228,7 +249,7 @@ export function useGrievancePage() {
       bus_route: item.bus_route || '',
       bus_number: item.bus_number || '',
       suggestions: item.suggestions || '',
-      status: item.status || 'Pending',
+      status: item.status || 'Not Yet Started',
       source: item.source || 'Form',
     })
     setIsEditModalOpen(true)
@@ -269,6 +290,7 @@ export function useGrievancePage() {
 
     try {
       setSubmitting(true)
+      const targetStatus = canEditStatus ? formData.status : selectedGrievance.status
       const updatedFields = {
         name: formData.name.trim(),
         email: formData.email.trim(),
@@ -281,7 +303,7 @@ export function useGrievancePage() {
         bus_route: formData.bus_route.trim(),
         bus_number: formData.bus_number.trim(),
         suggestions: formData.suggestions.trim(),
-        status: canEditStatus ? formData.status : selectedGrievance.status,
+        status: targetStatus,
       }
 
       const { error } = await supabase
@@ -291,6 +313,14 @@ export function useGrievancePage() {
 
       if (error) {
         throw error
+      }
+
+      // Automatically trigger workflow mail if status changed to In Progress or Resolved
+      if (canEditStatus && targetStatus !== selectedGrievance.status) {
+        await triggerStatusAutomatedMail(targetStatus || 'Not Yet Started', {
+          name: formData.name,
+          email: formData.email,
+        })
       }
 
       setGrievances((prev) =>
@@ -386,10 +416,8 @@ export function useGrievancePage() {
       if (statusFilter !== 'All') {
         const itemStatus = (item.status || '').toLowerCase()
         const targetStatus = statusFilter.toLowerCase()
-        if (targetStatus.includes('issue mail')) {
-          if (!itemStatus.includes('issue mail')) return false
-        } else if (targetStatus.includes('final mail')) {
-          if (!itemStatus.includes('final mail')) return false
+        if (targetStatus === 'in progress' || targetStatus.includes('progress')) {
+          if (!itemStatus.includes('progress') && !itemStatus.includes('issue mail')) return false
         } else if (itemStatus !== targetStatus) {
           return false
         }
@@ -419,20 +447,15 @@ export function useGrievancePage() {
     const total = target.length
     const notYetStarted = target.filter((g) => {
       const s = (g.status || '').toLowerCase()
-      return s === 'not yet started' || s === 'pending'
+      return s === 'not yet started' || s === 'pending' || s === ''
     }).length
-    const inProgress = target.filter((g) => (g.status || '').toLowerCase() === 'in progress').length
-    const issueMailSent = target.filter((g) => {
+    const inProgress = target.filter((g) => {
       const s = (g.status || '').toLowerCase()
-      return s === 'issue mail sent' || s === 'issue mail to be sent' || s.includes('issue mail')
-    }).length
-    const finalMailSent = target.filter((g) => {
-      const s = (g.status || '').toLowerCase()
-      return s === 'final mail sent' || s === 'final mail to be sent' || s.includes('final mail')
+      return s.includes('progress') || s.includes('issue mail') || s.includes('final mail')
     }).length
     const resolved = target.filter((g) => (g.status || '').toLowerCase() === 'resolved').length
 
-    return { total, notYetStarted, inProgress, issueMailSent, finalMailSent, resolved }
+    return { total, notYetStarted, inProgress, resolved }
   }, [filteredByTypeGrievances])
 
   // Export Grievances to Excel / CSV (Filtered by Type, Status, & Search)

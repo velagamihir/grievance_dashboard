@@ -20,7 +20,6 @@ import {
   Building,
   Download,
   ChevronDown,
-  Send,
 } from 'lucide-react'
 import { useDocumentTitle, useGrievancePage } from '../hooks'
 import {
@@ -45,24 +44,6 @@ import type {
   GrievancePageProps,
   FormResponseRow,
 } from '../types'
-
-const WORKFLOW_1_URL =
-  'https://defaultf6981b0a39154628be7e368196415f.8f.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/24/workflows/39cd03b882604c9688cb5736fc47290e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=KKCJqNkdCwhh0_o5e7_XyOkeLA_9rDFvfmRtmYdnZNc'
-
-const WORKFLOW_2_URL =
-  'https://defaultf6981b0a39154628be7e368196415f.8f.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/03/workflows/d37f8e2b01614d5fa3e273a2ba60c8bb/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=tpqTSnHDMl3WhYF3PMAUyX9TgSMxR3OwLgFKjkA2H-g'
-
-const isIssueMailStatus = (status?: string | null): boolean => {
-  if (!status) return false
-  const s = status.trim().toLowerCase()
-  return s === 'issue mail to be sent' || s === 'issue mail sent' || s.includes('issue mail')
-}
-
-const isFinalMailStatus = (status?: string | null): boolean => {
-  if (!status) return false
-  const s = status.trim().toLowerCase()
-  return s === 'final mail to be sent' || s === 'final mail sent' || s.includes('final mail')
-}
 
 const ExpandableDescription: React.FC<{ text?: string | null }> = ({ text }) => {
   const [isExpanded, setIsExpanded] = useState(false)
@@ -108,7 +89,6 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
   useDocumentTitle('Grievances | Grievance Portal')
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
-  const [triggeringWorkflow, setTriggeringWorkflow] = useState<Record<string, boolean>>({})
   const [resolveConfirmItem, setResolveConfirmItem] = useState<{ id: number; name: string } | null>(null)
   const [resolvingStatus, setResolvingStatus] = useState(false)
 
@@ -138,8 +118,6 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
     canEditGrievance,
     canEditStatus,
     canDeleteGrievance,
-    canTriggerWorkflow1,
-    canTriggerWorkflow2,
     permissionsLoading,
     role,
     displayName,
@@ -202,134 +180,6 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
       setResolveConfirmItem(null)
     } finally {
       setResolvingStatus(false)
-    }
-  }
-
-  const handleTriggerWorkflow1 = async (item: FormResponseRow) => {
-    if (!canTriggerWorkflow1) {
-      setToast({
-        message: 'Permission Denied: You do not have permission to trigger Workflow 1.',
-        type: 'error',
-      })
-      return
-    }
-
-    if (!isIssueMailStatus(item.status)) {
-      setToast({
-        message: 'Action 1 ("Send Issue Mail") can only be triggered when status is "Issue Mail to be Sent".',
-        type: 'error',
-      })
-      return
-    }
-
-    if (!item.email) {
-      setToast({
-        message: 'No email address found for this grievance.',
-        type: 'error',
-      })
-      return
-    }
-
-    const key = `${item.id}-flow1`
-    setTriggeringWorkflow((prev) => ({ ...prev, [key]: true }))
-
-    try {
-      const payload = {
-        name: item.name || 'Anonymous',
-        email: item.email || '',
-      }
-
-      const res = await fetch(WORKFLOW_1_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      })
-
-      if (!res.ok) {
-        throw new Error(`Request failed with status ${res.status}`)
-      }
-
-      setToast({
-        message: `Issue mail workflow triggered successfully for ${item.name || item.email}!`,
-        type: 'success',
-      })
-    } catch (err: any) {
-      setToast({
-        message: `Failed to trigger Issue Mail Workflow: ${err?.message || 'Network error'}`,
-        type: 'error',
-      })
-    } finally {
-      setTriggeringWorkflow((prev) => ({ ...prev, [key]: false }))
-    }
-  }
-
-  const handleTriggerWorkflow2 = async (item: FormResponseRow) => {
-    if (!canTriggerWorkflow2) {
-      setToast({
-        message: 'Permission Denied: You do not have permission to trigger Workflow 2.',
-        type: 'error',
-      })
-      return
-    }
-
-    if (!isFinalMailStatus(item.status)) {
-      setToast({
-        message: 'Action 2 ("Send Resolution Mail") can only be triggered when status is "Final Mail to be Sent".',
-        type: 'error',
-      })
-      return
-    }
-
-    if (!WORKFLOW_2_URL) {
-      setToast({
-        message: 'Workflow 2 API URL is pending configuration. Please share the URL to connect it.',
-        type: 'info',
-      })
-      return
-    }
-
-    if (!item.email) {
-      setToast({
-        message: 'No email address found for this grievance.',
-        type: 'error',
-      })
-      return
-    }
-
-    const key = `${item.id}-flow2`
-    setTriggeringWorkflow((prev) => ({ ...prev, [key]: true }))
-
-    try {
-      const payload = {
-        name: item.name || 'Anonymous',
-        email: item.email || '',
-      }
-
-      const res = await fetch(WORKFLOW_2_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      })
-
-      if (!res.ok) {
-        throw new Error(`Request failed with status ${res.status}`)
-      }
-
-      setToast({
-        message: `Workflow 2 triggered successfully for ${item.name || item.email}!`,
-        type: 'success',
-      })
-    } catch (err: any) {
-      setToast({
-        message: `Failed to trigger Workflow 2: ${err?.message || 'Network error'}`,
-        type: 'error',
-      })
-    } finally {
-      setTriggeringWorkflow((prev) => ({ ...prev, [key]: false }))
     }
   }
 
@@ -498,8 +348,6 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
               { label: 'All', value: 'All', count: stats.total },
               { label: 'Not Yet Started', value: 'Not Yet Started', count: stats.notYetStarted },
               { label: 'In Progress', value: 'In progress', count: stats.inProgress },
-              { label: 'Issue Mail to be Sent', value: 'Issue mail to be sent', count: stats.issueMailSent },
-              { label: 'Final Mail to be Sent', value: 'Final mail to be sent', count: stats.finalMailSent },
               { label: 'Resolved', value: 'Resolved', count: stats.resolved },
             ]}
             selectedFilter={statusFilter}
@@ -703,13 +551,9 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
                               } ${
                                 item.status === 'In progress'
                                   ? 'bg-lightblue/15 text-lightblue dark:text-lightblue border-lightblue/30'
-                                  : item.status === 'Issue mail sent'
-                                    ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30'
-                                    : item.status === 'Final mail sent'
-                                      ? 'bg-darkblue/15 text-darkblue dark:text-offwhite border-darkblue/30'
-                                      : item.status === 'Resolved'
-                                        ? ''
-                                        : 'bg-orange/15 text-orange border-orange/30'
+                                  : item.status === 'Resolved'
+                                    ? ''
+                                    : 'bg-orange/15 text-orange border-orange/30'
                               }`}
                             >
                               {STATUS_OPTIONS.map((opt) => (
@@ -726,70 +570,6 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
                               ▾
                             </span>
                           </div>
-                        )
-                      })()}
-
-                      {/* Workflow 1 Trigger - Issue Mail */}
-                      {canTriggerWorkflow1 && (() => {
-                        const isEligible = isIssueMailStatus(item.status)
-                        const isSubmitting = Boolean(triggeringWorkflow[`${item.id}-flow1`])
-                        const isDisabled = !isEligible || isSubmitting
-                        const title = !isEligible
-                          ? `Only available when status is 'Issue Mail to be Sent' (Current: ${item.status || 'Pending'})`
-                          : `Send Issue Mail (Power Automate) for ${item.name || item.email}`
-
-                        return (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleTriggerWorkflow1(item)}
-                            disabled={isDisabled}
-                            title={title}
-                            className={`p-2 transition-all ${
-                              isEligible
-                                ? 'text-lightblue hover:text-lightblue hover:bg-lightblue/10 dark:hover:bg-lightblue/20 border-lightblue/40 shadow-xs'
-                                : 'opacity-40 cursor-not-allowed border-gray/20 text-gray'
-                            }`}
-                          >
-                            {isSubmitting ? (
-                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <Send className="w-3.5 h-3.5" />
-                            )}
-                            <span className="hidden md:inline ml-1 text-xs">Send Issue Mail</span>
-                          </Button>
-                        )
-                      })()}
-
-                      {/* Workflow 2 Trigger - Resolution / Final Mail */}
-                      {canTriggerWorkflow2 && (() => {
-                        const isEligible = isFinalMailStatus(item.status)
-                        const isSubmitting = Boolean(triggeringWorkflow[`${item.id}-flow2`])
-                        const isDisabled = !isEligible || isSubmitting
-                        const title = !isEligible
-                          ? `Only available when status is 'Final Mail to be Sent' (Current: ${item.status || 'Pending'})`
-                          : `Send Resolution Mail (Power Automate) for ${item.name || item.email}`
-
-                        return (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleTriggerWorkflow2(item)}
-                            disabled={isDisabled}
-                            title={title}
-                            className={`p-2 transition-all ${
-                              isEligible
-                                ? 'text-orange hover:text-orange hover:bg-orange/10 dark:hover:bg-orange/20 border-orange/40 shadow-xs'
-                                : 'opacity-40 cursor-not-allowed border-gray/20 text-gray'
-                            }`}
-                          >
-                            {isSubmitting ? (
-                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <Send className="w-3.5 h-3.5" />
-                            )}
-                            <span className="hidden md:inline ml-1 text-xs">Send Resolution Mail</span>
-                          </Button>
                         )
                       })()}
 
