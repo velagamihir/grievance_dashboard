@@ -36,7 +36,6 @@ import {
 } from '../components'
 import {
   STATUS_OPTIONS,
-  GRIEVANCE_TYPES,
   getStatusBadgeVariant,
   formatDate,
 } from '../utils'
@@ -678,7 +677,9 @@ export const GrievancePage: React.FC<GrievancePageProps> = ({
                 type: 'select',
                 required: true,
                 leftIcon: <Layers className="w-4 h-4" />,
-                options: allowedGrievanceType ? [allowedGrievanceType] : GRIEVANCE_TYPES,
+                options: allowedGrievanceType
+                  ? [allowedGrievanceType]
+                  : availableGrievanceTypes.filter((t) => t !== 'All'),
                 disabled: Boolean(allowedGrievanceType),
                 colSpan: 1,
               },

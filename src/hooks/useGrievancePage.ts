@@ -3,7 +3,6 @@ import { useAuth } from '../context/AuthContext'
 import { usePermissions } from './usePermissions'
 import { supabase } from '../lib/supabase'
 import {
-  GRIEVANCE_TYPES,
   initialGrievanceFormData,
   exportGrievancesToExcel,
   validateLocationRequirement,
@@ -56,7 +55,7 @@ export function useGrievancePage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [typeFilter, setTypeFilter] = useState('All')
-  const [sources, setSources] = useState<string[]>(['Form', 'Web Portal', 'Mobile App', 'Kiosk'])
+  const [sources, setSources] = useState<string[]>([])
 
   // Auto-clear toast
   useEffect(() => {
@@ -240,17 +239,17 @@ export function useGrievancePage() {
     setFormData({
       name: item.name || '',
       email: item.email || '',
-      type_of_grievance: item.type_of_grievance || 'Hostel & Accommodation',
+      type_of_grievance: item.type_of_grievance || '',
       problem_description: item.problem_description || '',
-      branch: item.branch || 'Computer Science',
-      section: item.section || 'A',
-      year: item.year || '1st Year',
+      branch: item.branch || '',
+      section: item.section || '',
+      year: item.year || '',
       room_no_and_block_name: item.room_no_and_block_name || '',
       bus_route: item.bus_route || '',
       bus_number: item.bus_number || '',
       suggestions: item.suggestions || '',
       status: item.status || 'Not Yet Started',
-      source: item.source || 'Form',
+      source: item.source || '',
     })
     setIsEditModalOpen(true)
   }, [canEditGrievance, showToast])
@@ -391,9 +390,11 @@ export function useGrievancePage() {
     if (allowedGrievanceType) {
       return [allowedGrievanceType]
     }
-    const typesSet = new Set<string>(GRIEVANCE_TYPES)
+    const typesSet = new Set<string>()
     grievances.forEach((g) => {
-      if (g.type_of_grievance) typesSet.add(g.type_of_grievance)
+      if (g.type_of_grievance && g.type_of_grievance.trim()) {
+        typesSet.add(g.type_of_grievance.trim())
+      }
     })
     return ['All', ...Array.from(typesSet)]
   }, [grievances, allowedGrievanceType])

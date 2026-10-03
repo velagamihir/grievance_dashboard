@@ -12,9 +12,8 @@ import {
 } from 'lucide-react'
 import { InputCard } from './InputCard'
 import { supabase } from '../lib/supabase'
-import { useAuth } from '../context/AuthContext'
 import { usePermissions } from '../hooks/usePermissions'
-import { STATUS_OPTIONS, GRIEVANCE_TYPES, initialGrievanceFormData, validateGrievanceForm } from '../utils'
+import { STATUS_OPTIONS, initialGrievanceFormData, validateGrievanceForm } from '../utils'
 import type {
   AddGrievanceCardProps,
   GrievanceFormData,
@@ -37,37 +36,38 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
   variant = 'card',
   readOnlyStatus = false,
 }) => {
-  const { user } = useAuth()
   const {
     canCreateGrievance,
     allowedGrievanceType,
     loading: permissionsLoading,
   } = usePermissions()
 
-  const [sources, setSources] = useState<string[]>(['Form', 'Web Portal', 'Mobile App', 'Kiosk'])
+  const [sources, setSources] = useState<string[]>([])
+  const [grievanceTypes, setGrievanceTypes] = useState<string[]>([])
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [formData, setFormData] = useState<GrievanceFormData>(() => ({
     ...initialGrievanceFormData,
-    name: initialData?.name || user?.displayName || user?.email?.split('@')[0] || '',
-    email: initialData?.email || user?.email || '',
+    name: initialData?.name || '',
+    email: initialData?.email || '',
     type_of_grievance:
       initialData?.type_of_grievance ||
-      (allowedGrievanceType ? allowedGrievanceType : initialGrievanceFormData.type_of_grievance),
+      (allowedGrievanceType ? allowedGrievanceType : ''),
     ...initialData,
   }))
 
   useEffect(() => {
-    if (user) {
+    if (initialData || allowedGrievanceType) {
       setFormData((prev) => ({
         ...prev,
-        name: initialData?.name || prev.name || user.displayName || user.email?.split('@')[0] || '',
-        email: initialData?.email || prev.email || user.email || '',
+        name: initialData?.name ?? prev.name,
+        email: initialData?.email ?? prev.email,
         type_of_grievance:
-          prev.type_of_grievance ||
+          initialData?.type_of_grievance ??
           (allowedGrievanceType ? allowedGrievanceType : prev.type_of_grievance),
+        ...initialData,
       }))
     }
-  }, [user, initialData, allowedGrievanceType])
+  }, [initialData, allowedGrievanceType])
 
   const [submitting, setSubmitting] = useState(false)
   const [alert, setAlert] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null)
@@ -85,10 +85,6 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
           const names = (data as SourceRow[]).map((s) => s.source_name).filter(Boolean)
           if (names.length > 0) {
             setSources(names)
-            setFormData((prev) => ({
-              ...prev,
-              source: prev.source || names[0],
-            }))
           }
         }
       } catch {
@@ -96,27 +92,43 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
       }
     }
 
+    const fetchGrievanceTypes = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('form_responses')
+          .select('type_of_grievance')
+
+        if (!error && data) {
+          const types = Array.from(
+            new Set(data.map((r: { type_of_grievance?: string | null }) => r.type_of_grievance).filter(Boolean))
+          ) as string[]
+          setGrievanceTypes(types)
+        }
+      } catch {
+        // Silent catch
+      }
+    }
+
     fetchSources()
+    fetchGrievanceTypes()
   }, [])
 
   const fields: InputCardField[] = [
     {
       name: 'name',
       label: 'Student / Complainant Name',
-      placeholder: 'Auto-filled from account',
+      placeholder: 'Enter complainant name',
       type: 'text',
       required: true,
-      helperText: 'Auto-filled from logged-in user profile (read-only)',
       leftIcon: <User className="w-4 h-4" />,
       colSpan: 1,
     },
     {
       name: 'email',
       label: 'Contact Email Address',
-      placeholder: 'Auto-filled from account',
+      placeholder: 'Enter contact email address',
       type: 'email',
       required: true,
-      helperText: 'Auto-filled from logged-in user profile (read-only)',
       leftIcon: <Mail className="w-4 h-4" />,
       colSpan: 1,
     },
@@ -126,7 +138,11 @@ export const AddGrievanceCard: React.FC<AddGrievanceCardProps> = ({
       type: 'select',
       required: true,
       leftIcon: <Layers className="w-4 h-4" />,
-      options: allowedGrievanceType ? [allowedGrievanceType] : GRIEVANCE_TYPES,
+      options: allowedGrievanceType
+        ? [allowedGrievanceType]
+        : grievanceTypes.length > 0
+        ? grievanceTypes
+        : [],
       disabled: Boolean(allowedGrievanceType),
       colSpan: 1,
     },

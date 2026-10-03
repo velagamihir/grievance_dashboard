@@ -18,7 +18,7 @@ import {
   Check,
 } from 'lucide-react'
 import { useDocumentTitle, useRolesPage } from '../hooks'
-import { GRIEVANCE_TYPES } from '../utils'
+import { supabase } from '../lib/supabase'
 import {
   Button,
   Drawer,
@@ -89,6 +89,29 @@ export const RolesPage: React.FC<RolesPageProps> = ({
     user,
     signOutUser,
   } = useRolesPage()
+
+  const [grievanceCategories, setGrievanceCategories] = useState<string[]>([])
+
+  // Dynamically fetch distinct grievance categories from database
+  React.useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('form_responses')
+          .select('type_of_grievance')
+
+        if (!error && data) {
+          const types = Array.from(
+            new Set(data.map((r: { type_of_grievance?: string | null }) => r.type_of_grievance).filter(Boolean))
+          ) as string[]
+          setGrievanceCategories(types)
+        }
+      } catch {
+        // Silent catch
+      }
+    }
+    fetchCategories()
+  }, [])
 
   // Form states for Add Role Modal
   const [addForm, setAddForm] = useState({
@@ -689,7 +712,7 @@ export const RolesPage: React.FC<RolesPageProps> = ({
                 <option value="All Types" className="bg-white dark:bg-[#1a1d2e] text-darkblue dark:text-offwhite font-semibold">
                   All Types (Unrestricted access to all grievances)
                 </option>
-                {GRIEVANCE_TYPES.map((type) => (
+                {grievanceCategories.map((type) => (
                   <option key={type} value={type} className="bg-white dark:bg-[#1a1d2e] text-darkblue dark:text-offwhite font-normal">
                     {type} (Restrict this role to {type} only)
                   </option>
@@ -846,7 +869,7 @@ export const RolesPage: React.FC<RolesPageProps> = ({
                   <option value="All Types" className="bg-white dark:bg-[#1a1d2e] text-darkblue dark:text-offwhite font-semibold">
                     All Types (Unrestricted access to all grievances)
                   </option>
-                  {GRIEVANCE_TYPES.map((type) => (
+                  {grievanceCategories.map((type) => (
                     <option key={type} value={type} className="bg-white dark:bg-[#1a1d2e] text-darkblue dark:text-offwhite font-normal">
                       {type} (Restrict this role to {type} only)
                     </option>
