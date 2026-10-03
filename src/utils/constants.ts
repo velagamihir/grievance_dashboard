@@ -4,16 +4,9 @@ export const GRIEVANCE_TYPES: string[] = [
   "Infrastructure(lights, fans, ac's, Smart boards, benches)",
   'Hostel',
   'Academic',
-  'Transport',
+  'Food & Transport',
   'Cleanliness/Sanitization',
-  'Hostel & Accommodation',
-  'Academic & Faculty',
-  'Bus & Transportation',
-  'Infrastructure & Classroom',
-  'Sanitation & Cleanliness',
-  'Water & Electricity',
-  'Canteen & Mess',
-  'Other',
+  'Discipline'
 ]
 
 export const DEFAULT_DEPARTMENTS: string[] = [
