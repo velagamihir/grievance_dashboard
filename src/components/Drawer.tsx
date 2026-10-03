@@ -276,6 +276,13 @@ export const Drawer: React.FC<DrawerProps> = ({
           }
         }
 
+        const normalizePath = (p?: string | null): string => {
+          if (!p) return '/'
+          const clean = p.toLowerCase().trim()
+          if (clean === '/dashboard' || clean === '/home' || clean === '') return '/'
+          return clean.replace(/\/+$/, '')
+        }
+
         // Standard system routes to evaluate against permissions
         const standardRoutes: RouteData[] = [
           { name: 'Dashboard', path: '/', icon: 'layout-dashboard', sort_order: 1 },
@@ -287,18 +294,32 @@ export const Drawer: React.FC<DrawerProps> = ({
           { name: 'Roles & Permissions', path: '/roles', icon: 'shield', sort_order: 99 },
         ]
 
-        // Merge standard candidates not already in resolvedRoutes
-        standardRoutes.forEach((sr) => {
-          if (!resolvedRoutes.some((r) => r.path.toLowerCase() === sr.path.toLowerCase())) {
-            resolvedRoutes.push(sr)
+        // Merge role-based routes and standard candidates, strictly deduplicating by normalized path and name
+        const combined = [...resolvedRoutes, ...standardRoutes]
+        const uniqueRoutes: RouteData[] = []
+        const seenKeys = new Set<string>()
+
+        combined.forEach((item) => {
+          const normPath = normalizePath(item.path)
+          const normName = (item.name || '').toLowerCase().trim()
+          const pathKey = normPath === '/' ? 'route_dashboard' : normPath
+          const nameKey = normName === 'dashboard' || normName === 'home' ? 'name_dashboard' : normName
+
+          if (!seenKeys.has(pathKey) && !seenKeys.has(nameKey)) {
+            seenKeys.add(pathKey)
+            seenKeys.add(nameKey)
+            uniqueRoutes.push({
+              ...item,
+              path: normPath,
+            })
           }
         })
 
         // Sort by sort_order
-        resolvedRoutes.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+        uniqueRoutes.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
 
         if (isMounted) {
-          setRawRoutes(resolvedRoutes)
+          setRawRoutes(uniqueRoutes)
         }
       } catch {
         if (isMounted) {
@@ -416,7 +437,9 @@ export const Drawer: React.FC<DrawerProps> = ({
             // Dynamic Routes from Supabase
             routes.map((route, index) => {
               const IconComponent = resolveIcon(route.icon)
-              const isActive = currentPath === route.path
+              const normCurrent = currentPath === '/dashboard' || currentPath === '/home' || currentPath === '' ? '/' : currentPath
+              const normRoute = route.path === '/dashboard' || route.path === '/home' || route.path === '' ? '/' : route.path
+              const isActive = normCurrent === normRoute
 
               return (
                 <button
