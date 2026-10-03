@@ -93,6 +93,8 @@ export const WorklogsPage = ({
     setCategoryFilter,
     sourceFilter,
     setSourceFilter,
+    scopeFilter,
+    setScopeFilter,
     dateFilter,
     setDateFilter,
     isAddModalOpen,
@@ -223,13 +225,15 @@ export const WorklogsPage = ({
           <div className="relative z-10 max-w-2xl space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 text-xs font-semibold backdrop-blur-xs">
               <Sparkles className="w-3.5 h-3.5 text-orange" />
-              Personal Operational Activity Log
+              {isAdminOrSuperAdmin ? 'Administrative Activity & Execution Hub' : 'Personal Operational Activity Log'}
             </div>
             <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight">
-              My Worklogs & Completed Works
+              {isAdminOrSuperAdmin ? 'Worklogs & Operational Execution' : 'My Worklogs & Completed Works'}
             </h2>
             <p className="text-xs sm:text-sm md:text-base text-offwhite/85">
-              Review and record your personal operational assignments, task execution history, and manual work activities.
+              {isAdminOrSuperAdmin
+                ? 'Review and monitor member operational assignments, execution progress, and personal work entries.'
+                : 'Review and record your personal operational assignments, task execution history, and manual work activities.'}
             </p>
           </div>
 
@@ -297,10 +301,41 @@ export const WorklogsPage = ({
         <div className="bg-white dark:bg-[#1a1d2e] rounded-2xl border border-gray/15 dark:border-gray/10 p-4 space-y-4 shadow-xs">
           {/* Top Row: Activity Badge & Add Button */}
           <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3 flex-wrap">
               <span className="text-xs font-bold text-darkblue dark:text-offwhite">
-                Personal Activity Feed ({worklogs.length} entries)
+                {isAdminOrSuperAdmin
+                  ? scopeFilter === 'my_logs'
+                    ? `My Activity Feed (${filteredWorklogs.length} entries)`
+                    : `All Members Activity Feed (${filteredWorklogs.length} entries)`
+                  : `Personal Activity Feed (${filteredWorklogs.length} entries)`}
               </span>
+
+              {isAdminOrSuperAdmin && (
+                <div className="flex items-center gap-1 p-1 rounded-xl bg-offwhite dark:bg-[#151726] border border-gray/15">
+                  <button
+                    type="button"
+                    onClick={() => setScopeFilter('all')}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                      scopeFilter === 'all'
+                        ? 'bg-lightblue text-white shadow-xs'
+                        : 'text-gray hover:text-darkblue dark:hover:text-offwhite'
+                    }`}
+                  >
+                    All Members ({worklogs.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setScopeFilter('my_logs')}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                      scopeFilter === 'my_logs'
+                        ? 'bg-lightblue text-white shadow-xs'
+                        : 'text-gray hover:text-darkblue dark:hover:text-offwhite'
+                    }`}
+                  >
+                    My Logs ({worklogs.filter((w) => w.user_uid === user?.uid).length})
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Action Buttons */}
@@ -337,7 +372,11 @@ export const WorklogsPage = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search your worklogs by title, description, category, or task..."
+                placeholder={
+                  isAdminOrSuperAdmin
+                    ? 'Search worklogs by title, description, category, member, or task...'
+                    : 'Search your worklogs by title, description, category, or task...'
+                }
                 className="w-full pl-9 pr-8 py-2 text-xs sm:text-sm rounded-xl border border-gray/20 dark:border-gray/15 bg-offwhite/50 dark:bg-[#151726]/60 text-darkblue dark:text-offwhite placeholder:text-gray focus:outline-none focus:ring-2 focus:ring-lightblue/30"
               />
               {searchQuery && (

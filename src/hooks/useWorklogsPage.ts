@@ -68,7 +68,7 @@ export function useWorklogsPage() {
     setToast({ message, type })
   }, [])
 
-  // Fetch personal worklogs, profiles, tasks, and user's completed task_assignments from Supabase
+  // Fetch personal or all worklogs (for super admin / admin), profiles, tasks, and completed task_assignments from Supabase
   const fetchData = useCallback(async () => {
     if (!user?.uid) {
       setRawWorklogs([])
@@ -80,19 +80,19 @@ export function useWorklogsPage() {
       setRefreshing(true)
       setDbNotice(null)
 
+      const logsQuery = isAdminOrSuperAdmin
+        ? supabase.from('worklogs').select('*').order('completed_at', { ascending: false })
+        : supabase.from('worklogs').select('*').eq('user_uid', user.uid).order('completed_at', { ascending: false })
+
+      const completedAssignsQuery = isAdminOrSuperAdmin
+        ? supabase.from('task_assignments').select('*').eq('status', 'Completed')
+        : supabase.from('task_assignments').select('*').eq('user_uid', user.uid).eq('status', 'Completed')
+
       const [logsRes, profilesRes, tasksRes, completedAssignsRes] = await Promise.all([
-        supabase
-          .from('worklogs')
-          .select('*')
-          .eq('user_uid', user.uid)
-          .order('completed_at', { ascending: false }),
+        logsQuery,
         supabase.from('profiles').select('*').order('firebase_uid', { ascending: true }),
         supabase.from('tasks').select('*'),
-        supabase
-          .from('task_assignments')
-          .select('*')
-          .eq('user_uid', user.uid)
-          .eq('status', 'Completed'),
+        completedAssignsQuery,
       ])
 
       let existingLogs: WorklogRow[] = []
@@ -115,7 +115,7 @@ export function useWorklogsPage() {
         setTasks(freshTasks)
       }
 
-      // Auto-backfill any completed task assignments for this user not yet in worklogs
+      // Auto-backfill any completed task assignments not yet in worklogs
       const existingKeySet = new Set(
         existingLogs.map((w) => `${w.task_id || ''}-${w.user_uid}`)
       )
@@ -132,7 +132,7 @@ export function useWorklogsPage() {
           const t = taskMapLocal.get(a.task_id)
           return {
             task_id: a.task_id,
-            user_uid: user.uid,
+            user_uid: a.user_uid,
             title: t?.title || 'Completed Task Assignment',
             description: a.notes || t?.description || 'Task completed via Work Assignments',
             category: 'Task Completion',
@@ -170,7 +170,7 @@ export function useWorklogsPage() {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [user])
+  }, [user, isAdminOrSuperAdmin])
 
   useEffect(() => {
     if (!permissionsLoading) {
@@ -213,6 +213,13 @@ export function useWorklogsPage() {
   // Filtered worklogs based on search, category, source, scope, and date
   const filteredWorklogs = useMemo(() => {
     return worklogsWithDetails.filter((log) => {
+      // 0. Scope Filter ('all' vs 'my_logs')
+      if (scopeFilter === 'my_logs' && user?.uid) {
+        if (log.user_uid !== user.uid) {
+          return false
+        }
+      }
+
       // 1. Category Filter
       if (categoryFilter !== 'All') {
         if ((log.category || 'General').toLowerCase() !== categoryFilter.toLowerCase()) {
@@ -242,31 +249,46 @@ export function useWorklogsPage() {
         const descMatch = (log.description || '').toLowerCase().includes(q)
         const catMatch = (log.category || '').toLowerCase().includes(q)
         const taskTitleMatch = (log.task?.title || '').toLowerCase().includes(q)
+        const memberNameMatch = (
+          log.userProfile?.display_name ||
+          log.userProfile?.email ||
+          ''
+        )
+          .toLowerCase()
+          .includes(q)
 
-        if (!titleMatch && !descMatch && !catMatch && !taskTitleMatch) {
+        if (!titleMatch && !descMatch && !catMatch && !taskTitleMatch && !memberNameMatch) {
           return false
         }
       }
 
       return true
     })
-  }, [worklogsWithDetails, categoryFilter, sourceFilter, dateFilter, searchQuery])
+  }, [worklogsWithDetails, scopeFilter, user, categoryFilter, sourceFilter, dateFilter, searchQuery])
 
-  // KPI Statistics for current user
+  // KPI Statistics
   const stats: WorklogStatItem[] = useMemo(() => {
-    const totalLogs = worklogsWithDetails.length
-    const totalHours = worklogsWithDetails
+    const totalLogs = filteredWorklogs.length
+    const totalHours = filteredWorklogs
       .reduce((acc, curr) => acc + (Number(curr.hours_spent) || 0), 0)
       .toFixed(1)
-    const taskLogs = worklogsWithDetails.filter((w) => w.log_source === 'Task Completion').length
-    const manualLogs = worklogsWithDetails.filter((w) => w.log_source === 'Manual').length
+    const taskLogs = filteredWorklogs.filter((w) => w.log_source === 'Task Completion').length
+    const manualLogs = filteredWorklogs.filter((w) => w.log_source === 'Manual').length
     const avgHours = totalLogs > 0 ? (Number(totalHours) / totalLogs).toFixed(1) : '0'
 
     return [
       {
-        title: 'My Worklogs',
+        title: isAdminOrSuperAdmin
+          ? scopeFilter === 'my_logs'
+            ? 'My Worklogs'
+            : 'Total Worklogs'
+          : 'My Worklogs',
         count: totalLogs,
-        change: 'Personal activity entries',
+        change: isAdminOrSuperAdmin
+          ? scopeFilter === 'my_logs'
+            ? 'Personal activity entries'
+            : 'All member entries'
+          : 'Personal activity entries',
         icon: FileText,
         color: 'from-blue-600 to-indigo-600 text-white',
       },
@@ -287,7 +309,7 @@ export function useWorklogsPage() {
       {
         title: 'Manual Entries',
         count: manualLogs,
-        change: 'Directly logged by you',
+        change: 'Directly logged entries',
         icon: Edit3,
         color: 'from-purple-600 to-violet-700 text-white',
       },
@@ -299,7 +321,7 @@ export function useWorklogsPage() {
         color: 'from-rose-500 to-red-600 text-white',
       },
     ]
-  }, [worklogsWithDetails])
+  }, [filteredWorklogs, isAdminOrSuperAdmin, scopeFilter])
 
   // Distinct Categories
   const categories = useMemo(() => {

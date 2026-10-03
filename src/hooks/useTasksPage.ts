@@ -526,13 +526,21 @@ export function useTasksPage() {
         return
       }
 
+      const targetUserUid = formData.userUid ? String(formData.userUid) : String(user.uid)
+      const isSelf = targetUserUid === String(user.uid)
+
+      if (!isAdminOrSuperAdmin && !isSelf) {
+        showToast('Permission Denied: Only super admins, admins, and the assigned user can update work status.', 'error')
+        return
+      }
+
       try {
         setActionLoading(true)
         setModalError(null)
 
         const isCompleted = formData.status === 'Completed'
         const taskIdNum = Number(formData.taskId)
-        const userUidStr = formData.userUid ? String(formData.userUid) : String(user.uid)
+        const userUidStr = targetUserUid
 
         const assignmentData = {
           task_id: taskIdNum,
@@ -692,7 +700,7 @@ export function useTasksPage() {
         setActionLoading(false)
       }
     },
-    [user, fetchData, showToast]
+    [user, isAdminOrSuperAdmin, tasks, activeTask, fetchData, showToast]
   )
 
   // 4. Delete Task

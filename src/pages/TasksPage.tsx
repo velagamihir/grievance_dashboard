@@ -56,6 +56,7 @@ export const TasksPage = ({
     signOutUser,
     role,
     displayName,
+    isAdminOrSuperAdmin,
     canCreateTask,
     canEditTask,
     canDeleteTask,
@@ -690,7 +691,7 @@ export const TasksPage = ({
                     </Button>
 
                     <div className="flex items-center gap-1">
-                      {isAssigned && canUpdateTaskStatus && (
+                      {(isAssigned || isAdminOrSuperAdmin) && canUpdateTaskStatus && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -1317,7 +1318,7 @@ export const TasksPage = ({
                 {activeTask.assignments.map((a) => {
                   const name = a.userProfile?.display_name || a.userProfile?.email || 'User'
                   const isCurrent = user?.uid === a.user_uid
-                  const canManageMemberStatus = isCurrent || canUpdateTaskStatus || canEditTask
+                  const canManageMemberStatus = (isCurrent || isAdminOrSuperAdmin) && canUpdateTaskStatus
                   return (
                     <div
                       key={a.id !== -1 ? a.id : `synthetic-${a.user_uid}`}
